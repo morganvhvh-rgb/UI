@@ -358,8 +358,11 @@ const App = () => {
 
   const transitionSpring = useMemo(() => ({ type: 'spring', damping: 25, stiffness: 200 }), []);
 
+  const isLuckRevealed = luckValue !== null;
+
   return (
-    <div className="relative w-full h-screen bg-green-600 overflow-hidden select-none touch-none flex flex-col font-sans text-slate-900">
+    // Changed h-screen to h-[100dvh] for mobile browser support
+    <div className="relative w-full h-[100dvh] bg-green-600 overflow-hidden select-none touch-none flex flex-col font-sans text-slate-900">
       
       {/* Camera Flash */}
       <AnimatePresence>

@@ -8,6 +8,9 @@ const App = () => {
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [bookPage, setBookPage] = useState(0);
   
+  // New State for Capture Screen
+  const [isCaptureScreenOpen, setIsCaptureScreenOpen] = useState(false);
+
   // Luck & Chance States
   const [buttonMode, setButtonMode] = useState('dice'); // 'dice' or 'feather'
   const [luckValue, setLuckValue] = useState(null);
@@ -19,7 +22,13 @@ const App = () => {
   const [chanceSlots, setChanceSlots] = useState(['❓', '❓', '❓']);
   const [isFinalResult, setIsFinalResult] = useState(false);
   
+  // Mystery Bird State
+  const [mysteryBird, setMysteryBird] = useState(null); // { x, y }
+  
   const [showFlash, setShowFlash] = useState(false);
+  // Camera Cooldown State
+  const [isCameraCoolingDown, setIsCameraCoolingDown] = useState(false);
+
   const [currentShopPage, setCurrentShopPage] = useState(0);
   
   // Text Box State
@@ -30,6 +39,7 @@ const App = () => {
   const [money, setMoney] = useState(999);
   const [trees, setTrees] = useState([]); 
   const [flowers, setFlowers] = useState([]); 
+  const [varietyItems, setVarietyItems] = useState([]); // Stores up to 2 purchased variety items
   
   const [activeItems, setActiveItems] = useState({
       house: null, 
@@ -43,6 +53,8 @@ const App = () => {
   const luckTimeoutRef = useRef(null);
   const luckCycleRef = useRef(null);
   const slotIntervalRef = useRef(null);
+  const mysteryBirdTimeoutRef = useRef(null);
+  const cameraCooldownRef = useRef(null);
 
   const tutorialMessages = useMemo(() => [
       "This is your backyard. There's a few things you need to know. ➡",
@@ -50,13 +62,14 @@ const App = () => {
       "But don't spend too much too early."
   ], []);
 
-  // Removed the auto-fade useEffect for the last message
   // Cleaning up timeouts on unmount
   useEffect(() => {
     return () => {
       if (luckTimeoutRef.current) clearTimeout(luckTimeoutRef.current);
       if (luckCycleRef.current) clearTimeout(luckCycleRef.current);
       if (slotIntervalRef.current) clearInterval(slotIntervalRef.current);
+      if (mysteryBirdTimeoutRef.current) clearTimeout(mysteryBirdTimeoutRef.current);
+      if (cameraCooldownRef.current) clearTimeout(cameraCooldownRef.current);
     };
   }, []);
 
@@ -83,7 +96,8 @@ const App = () => {
         {
           title: 'BIRD BATHS',
           items: [
-            { icon: '🏺', price: 1, stat: 5, type: 'bath', label: 'Fountain', bgColor: 'bg-teal-100' },
+            // Changed icon from 🏺 to ⚱
+            { icon: '⚱', price: 1, stat: 5, type: 'bath', label: 'Fountain', bgColor: 'bg-teal-100' },
             { icon: '🛁', price: 1, stat: 5, type: 'bath', label: 'Tub', bgColor: 'bg-teal-100' },
             { icon: '⛲', price: 1, stat: 5, type: 'bath', label: 'Bowl', bgColor: 'bg-teal-100' },
           ]
@@ -106,25 +120,25 @@ const App = () => {
         {
           title: '', 
           items: [
-             { icon: '🧢', price: 1, stat: 5, type: 'misc' }, 
-             { icon: '🕶️', price: 1, stat: 5, type: 'misc' }, 
-             { icon: '🎒', price: 1, stat: 5, type: 'misc' },
+             { icon: '🎁', price: 1, stat: 5, type: 'misc' }, 
+             { icon: '🔭', price: 1, stat: 5, type: 'misc' }, 
+             { icon: '🪈', price: 1, stat: 5, type: 'misc' },
           ]
         },
         {
           title: '',
           items: [
-            { icon: '🎸', price: 1, stat: 5, type: 'misc' }, 
-            { icon: '🚲', price: 1, stat: 5, type: 'misc' }, 
-            { icon: '🧸', price: 1, stat: 5, type: 'misc' },
+            { icon: '📸', price: 1, stat: 5, type: 'misc' }, 
+            { icon: '🍣', price: 1, stat: 5, type: 'misc' }, 
+            { icon: '🐈', price: 1, stat: 5, type: 'misc' },
           ]
         },
         {
           title: '',
           items: [
-            { icon: '📱', price: 1, stat: 5, type: 'misc' }, 
-            { icon: '💎', price: 1, stat: 5, type: 'misc' }, 
-            { icon: '🚀', price: 1, stat: 5, type: 'misc' },
+            { icon: '👟', price: 1, stat: 5, type: 'misc' }, 
+            { icon: '🕯️', price: 1, stat: 5, type: 'misc' }, 
+            { icon: '🎃', price: 1, stat: 5, type: 'misc' },
           ]
         }
       ]
@@ -176,12 +190,24 @@ const App = () => {
       if (selectedShopItem === item) {
           if (money >= item.price) {
               setMoney(prev => prev - item.price);
+              
               if (['house', 'bath', 'feeder'].includes(item.type)) {
                   setActiveItems(prev => ({
                       ...prev,
                       [item.type]: item 
                   }));
+              } else if (item.type === 'misc') {
+                  // Variety Store Item Logic
+                  setVarietyItems(prev => {
+                      const newItems = [...prev, item.icon];
+                      // If we have more than 2, remove the oldest (FIFO)
+                      if (newItems.length > 2) {
+                          return newItems.slice(newItems.length - 2);
+                      }
+                      return newItems;
+                  });
               }
+              
               setSelectedShopItem(null);
           }
       } else {
@@ -216,9 +242,33 @@ const App = () => {
 
   const handleCameraClick = useCallback(() => {
     closeAllMenus();
+
+    // Check Cooldown and Money
+    if (isCameraCoolingDown) return;
+    if (money < 1) return;
+
+    // Deduct Cost
+    setMoney(prev => prev - 1);
+    
+    // Start Cooldown
+    setIsCameraCoolingDown(true);
+    cameraCooldownRef.current = setTimeout(() => {
+        setIsCameraCoolingDown(false);
+    }, 3000); // 3 seconds
+
+    // Trigger Flash
     setShowFlash(true);
     luckTimeoutRef.current = setTimeout(() => setShowFlash(false), 150);
-  }, [closeAllMenus]);
+
+    // Check Capture
+    if (mysteryBird) {
+        setIsCaptureScreenOpen(true);
+        // We do not auto-clear the bird here, we let the timeout or the new screen handle it visually
+        // Usually you'd clear the bird so it doesn't "timeout" while you're looking at the capture screen
+        // but for now we just open the screen.
+    }
+
+  }, [closeAllMenus, isCameraCoolingDown, money, mysteryBird]);
 
   const handleLuckClick = useCallback(() => {
     closeAllMenus();
@@ -229,6 +279,10 @@ const App = () => {
         // Reset previous values to start fresh for this "Turn"
         setLuckValue(null);
         setFeatherCount(null);
+        
+        // Clear any pending mystery bird from previous turns
+        if (mysteryBirdTimeoutRef.current) clearTimeout(mysteryBirdTimeoutRef.current);
+        setMysteryBird(null);
         
         setIsRollingLuck(true);
         setIsFinalResult(false);
@@ -267,19 +321,19 @@ const App = () => {
         // Define options
         const options = ['❌', '🪶'];
         
-        // Final Results (Pre-calculate or determine on stop)
-        // Let's determine them on the fly for the "cycling" effect
-        // We'll use a state to track which reels are stopped
-        
+        // Initialize as blank
+        setChanceSlots(['❓', '❓', '❓']);
+
+        // Final Results
         const finalSlots = [
             options[Math.floor(Math.random() * options.length)],
             options[Math.floor(Math.random() * options.length)],
             options[Math.floor(Math.random() * options.length)]
         ];
 
-        let animationFrameId;
         const startTime = Date.now();
-        const spinDuration = [1000, 1500, 2000]; // Stop times for Reel 1, 2, 3
+        // Sequential stops: 1s, 2s, 3s
+        const timings = [1000, 2000, 3000]; 
         
         // Clear interval if exists
         if (slotIntervalRef.current) clearInterval(slotIntervalRef.current);
@@ -291,37 +345,57 @@ const App = () => {
             setChanceSlots(prev => {
                 const newSlots = [...prev];
                 
-                // Reel 1
-                if (elapsed < spinDuration[0]) {
+                // Reel 1 Logic (0ms to 1000ms)
+                if (elapsed < timings[0]) {
                      newSlots[0] = options[Math.floor(Math.random() * options.length)];
+                     // Others stay blank/hidden
                 } else {
                      newSlots[0] = finalSlots[0];
                 }
 
-                // Reel 2
-                if (elapsed < spinDuration[1]) {
-                     newSlots[1] = options[Math.floor(Math.random() * options.length)];
-                } else {
-                     newSlots[1] = finalSlots[1];
+                // Reel 2 Logic (1000ms to 2000ms)
+                if (elapsed >= timings[0]) {
+                    if (elapsed < timings[1]) {
+                        newSlots[1] = options[Math.floor(Math.random() * options.length)];
+                    } else {
+                        newSlots[1] = finalSlots[1];
+                    }
                 }
 
-                // Reel 3
-                if (elapsed < spinDuration[2]) {
-                     newSlots[2] = options[Math.floor(Math.random() * options.length)];
-                } else {
-                     newSlots[2] = finalSlots[2];
+                // Reel 3 Logic (2000ms to 3000ms)
+                if (elapsed >= timings[1]) {
+                    if (elapsed < timings[2]) {
+                        newSlots[2] = options[Math.floor(Math.random() * options.length)];
+                    } else {
+                        newSlots[2] = finalSlots[2];
+                    }
                 }
                 
                 return newSlots;
             });
 
             // End Condition
-            if (elapsed > spinDuration[2] + 100) {
+            if (elapsed > timings[2] + 100) {
                 clearInterval(slotIntervalRef.current);
                 setIsFinalResult(true);
                 const count = finalSlots.filter(s => s === '🪶').length;
                 setFeatherCount(count);
                 
+                // --- MYSTERY BIRD EVENT TRIGGER ---
+                const delay = Math.random() * 3000 + 2000; // 2-5 seconds random delay
+                mysteryBirdTimeoutRef.current = setTimeout(() => {
+                    // Random Position (avoiding edges slightly)
+                    const x = Math.floor(Math.random() * 80) + 10; 
+                    const y = Math.floor(Math.random() * 80) + 10;
+                    setMysteryBird({ x, y });
+
+                    // Disappear after 1 second
+                    setTimeout(() => {
+                        setMysteryBird(null);
+                    }, 1000);
+                }, delay);
+                // ----------------------------------
+
                 luckTimeoutRef.current = setTimeout(() => {
                     setIsRollingChance(false);
                     setIsFinalResult(false);
@@ -353,17 +427,59 @@ const App = () => {
     backdrop: { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } },
     profile: { initial: { y: '-100%' }, animate: { y: 0 }, exit: { y: '-100%' } },
     book: { initial: { x: '100%' }, animate: { x: 0 }, exit: { x: '100%' } },
-    shop: { initial: { y: '100%' }, animate: { y: 0 }, exit: { y: '100%' } }
+    shop: { initial: { y: '100%' }, animate: { y: 0 }, exit: { y: '100%' } },
+    capture: { initial: { opacity: 0, scale: 0.9 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.9 } }
   }), []);
 
   const transitionSpring = useMemo(() => ({ type: 'spring', damping: 25, stiffness: 200 }), []);
-
-  const isLuckRevealed = luckValue !== null;
 
   return (
     // Changed h-screen to h-[100dvh] for mobile browser support
     <div className="relative w-full h-[100dvh] bg-green-600 overflow-hidden select-none touch-none flex flex-col font-sans text-slate-900">
       
+      {/* Capture Screen / Modal */}
+      <AnimatePresence>
+        {isCaptureScreenOpen && (
+            <motion.div
+                key="capture-screen"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-6 text-white"
+            >
+                <div className="w-full max-w-sm border-4 border-white rounded-3xl p-8 bg-slate-800 flex flex-col items-center gap-6 shadow-2xl">
+                    <h1 className="text-4xl font-black text-yellow-400 tracking-wider">CAPTURED!</h1>
+                    <div className="w-32 h-32 bg-slate-700 rounded-full flex items-center justify-center border-4 border-dashed border-slate-500">
+                        <span className="text-6xl grayscale brightness-0 invert">🐦</span>
+                    </div>
+                    <p className="text-center font-bold text-slate-400">
+                        You snapped a photo of the mystery bird!
+                    </p>
+                    <button 
+                        onClick={() => setIsCaptureScreenOpen(false)}
+                        className="mt-4 px-8 py-3 bg-blue-600 rounded-xl font-black text-xl border-2 border-white shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] active:scale-95 transition-transform"
+                    >
+                        CLOSE
+                    </button>
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mystery Bird Overlay */}
+      {mysteryBird && (
+        <div 
+            className="absolute z-[100] text-9xl pointer-events-none filter brightness-0 select-none drop-shadow-2xl"
+            style={{ 
+                top: `${mysteryBird.y}%`, 
+                left: `${mysteryBird.x}%`, 
+                transform: 'translate(-50%, -50%)' 
+            }}
+        >
+            🐦
+        </div>
+      )}
+
       {/* Camera Flash */}
       <AnimatePresence>
         {showFlash && (
@@ -416,7 +532,8 @@ const App = () => {
       {/* Luck Rolling Animation - Lucky Number */}
       <AnimatePresence>
         {isRollingLuck && (
-            <div className="absolute inset-0 z-[60] flex items-center justify-center pointer-events-none">
+            // Added pb-40 to shift container content up
+            <div className="absolute inset-0 z-[60] flex items-center justify-center pb-40 pointer-events-none">
                 <motion.div
                     initial={{ scale: 0, rotate: -20 }}
                     animate={{ scale: 1, rotate: 0 }}
@@ -441,7 +558,8 @@ const App = () => {
       {/* Luck Rolling Animation - Chance (Slots) */}
       <AnimatePresence>
         {isRollingChance && (
-            <div className="absolute inset-0 z-[60] flex items-center justify-center pointer-events-none">
+            // Added pb-40 to shift container content up
+            <div className="absolute inset-0 z-[60] flex items-center justify-center pb-40 pointer-events-none">
                 <motion.div
                     initial={{ scale: 0, rotate: 12 }}
                     animate={{ scale: 1, rotate: 0 }}
@@ -491,13 +609,11 @@ const App = () => {
                         }}
                         className="relative h-full z-10 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex-1 rounded-lg overflow-hidden group"
                         style={{
-                            background: 'linear-gradient(135deg, #f472b6 50%, #fb923c 50%)' // Updated to pink-400 and orange-400 hex
+                            background: 'linear-gradient(135deg, #f472b6 50%, #fb923c 50%)' 
                         }}
                     >
-                        {/* Diagonal Slash Line */}
-                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                             <div className="w-[150%] h-[2px] bg-black transform -rotate-[45deg]" />
-                        </div>
+                        {/* Removed the black diagonal slash line div */}
+                        {/* The gradient background above provides the color separation */}
 
                         {/* Top Left - Pink - Lucky Number */}
                         <div className="absolute top-1 left-2">
@@ -577,7 +693,7 @@ const App = () => {
         />
         <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.3)_100%)] pointer-events-none"></div>
 
-        {/* Text Window - Updated Styling & Fade Out - FIXED POSITIONING */}
+        {/* Text Window - Updated Styling & Fade Out */}
         <AnimatePresence>
             {isTextVisible && (
                 <motion.div 
@@ -586,7 +702,7 @@ const App = () => {
                     animate={{ opacity: 1, y: 0, x: "-50%" }}
                     exit={{ opacity: 0, y: -10, x: "-50%" }}
                     transition={{ duration: 0.3 }}
-                    className="absolute top-4 left-1/2 w-[65%] h-20 border-2 border-amber-900/20 bg-[#fdfbf7] rounded-xl flex items-center justify-center z-40 pointer-events-auto shadow-sm cursor-pointer active:scale-95"
+                    className="absolute top-4 left-1/2 w-[85%] max-w-sm h-auto min-h-[4rem] py-3 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl flex items-center justify-center z-40 pointer-events-auto cursor-pointer active:scale-95"
                 >
                     <AnimatePresence mode='wait'>
                         <motion.span 
@@ -594,7 +710,7 @@ const App = () => {
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -5 }}
-                            className="text-amber-900 text-sm font-semibold drop-shadow-sm text-center px-4 leading-tight select-none flex items-center justify-center gap-2"
+                            className="text-black text-sm font-black tracking-wide text-center px-4 leading-tight select-none flex items-center justify-center gap-2"
                         >
                             {tutorialMessages[textIndex]}
                             {textIndex === tutorialMessages.length - 1 && (
@@ -606,10 +722,21 @@ const App = () => {
             )}
         </AnimatePresence>
 
-        {/* Decorative Telescope & Gift */}
+        {/* Decorative Variety Items (Replaces Static Telescope/Gift) */}
         <div className="absolute bottom-2 left-2 z-8 pointer-events-none flex items-end gap-1">
-            <div className="text-5xl filter drop-shadow-lg transform -rotate-12 opacity-90 pb-1">🔭</div>
-            <div className="text-5xl filter drop-shadow-lg transform rotate-6 opacity-90">🎁</div>
+            <AnimatePresence>
+                {varietyItems.map((item, index) => (
+                    <motion.div
+                        key={`variety-${index}`}
+                        initial={{ opacity: 0, scale: 0, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0 }}
+                        className={`text-5xl filter drop-shadow-lg opacity-90 ${index % 2 === 0 ? 'transform -rotate-12 pb-1' : 'transform rotate-6'}`}
+                    >
+                        {item}
+                    </motion.div>
+                ))}
+            </AnimatePresence>
         </div>
 
         {/* Trees Layer */}
@@ -656,7 +783,7 @@ const App = () => {
         <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 bg-red-900 rounded-r-2xl pl-3 pr-2 py-4 flex flex-col gap-4 z-20 border-y-2 border-r-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           {[
             { icon: '📈', color: 'bg-blue-500', value: 50 },
-            { icon: '🚗', color: 'bg-slate-400', value: 50 }
+            { icon: '🚘', color: 'bg-slate-400', value: 50 } // Changed icon to 🚘
           ].map((meter, i) => (
             <div key={meter.icon} className="relative flex flex-col items-center gap-1">
               <span className="text-xl filter drop-shadow-[0_2px_3px_rgba(0,0,0,0.4)]">{meter.icon}</span>
@@ -757,10 +884,15 @@ const App = () => {
             {/* Center Main Action - Camera */}
             <motion.button 
                 onClick={handleCameraClick}
-                whileTap={{ scale: 0.98, y: 4, boxShadow: '0px 0px 0px 0px rgba(0,0,0,1)' }}
-                className="h-20 w-24 mb-1 rounded-3xl bg-blue-600 border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group flex items-center justify-center"
+                disabled={isCameraCoolingDown || money < 1}
+                whileTap={(!isCameraCoolingDown && money >= 1) ? { scale: 0.98, y: 4, boxShadow: '0px 0px 0px 0px rgba(0,0,0,1)' } : {}}
+                className={`h-20 w-24 mb-1 rounded-3xl border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group flex items-center justify-center transition-colors duration-200
+                    ${isCameraCoolingDown ? 'bg-red-500 cursor-not-allowed' : (money < 1 ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600')}
+                `}
             >
                  <span className="text-4xl filter drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] relative z-10 -mt-2 group-active:rotate-12 transition-transform duration-300">📷</span>
+                 {/* Cooldown Overlay (optional visual cue, but the button is red now) */}
+                 {isCameraCoolingDown && <div className="absolute inset-0 bg-black/10" />}
             </motion.button>
 
              {/* Right Action - Luck */}

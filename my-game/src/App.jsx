@@ -74,7 +74,7 @@ const App = () => {
   const mysteryBirdTimeoutRef = useRef(null);
   const cameraCooldownRef = useRef(null);
   const catchTimeoutRef = useRef(null);
-  const flashTimeoutRef = useRef(null); // NEW: Separate ref for flash
+  const flashTimeoutRef = useRef(null); 
 
   const tutorialMessages = useMemo(() => [
       "This is your backyard. There's a few things you need to know. ➡",
@@ -110,25 +110,25 @@ const App = () => {
         {
           title: 'BIRD HOUSES',
           items: [
-            { icon: '🏚', price: 10, stat: 15, type: 'house', label: 'Classic', bgColor: 'bg-red-100' },
+            { icon: '🏚', price: 10, stat: 5, type: 'house', label: 'Classic', bgColor: 'bg-red-100' },
             { icon: '🏠', price: 20, stat: 15, type: 'house', label: 'Manor', bgColor: 'bg-red-100' },
-            { icon: '🏘', price: 30, stat: 15, type: 'house', label: 'Cottage', bgColor: 'bg-red-100' },
+            { icon: '🏘', price: 30, stat: 25, type: 'house', label: 'Cottage', bgColor: 'bg-red-100' },
           ]
         },
         {
           title: 'BIRD BATHS',
           items: [
-            { icon: '⚱', price: 10, stat: 15, type: 'bath', label: 'Fountain', bgColor: 'bg-teal-100' },
+            { icon: '⚱', price: 10, stat: 5, type: 'bath', label: 'Fountain', bgColor: 'bg-teal-100' },
             { icon: '🛁', price: 20, stat: 15, type: 'bath', label: 'Tub', bgColor: 'bg-teal-100' },
-            { icon: '⛲', price: 30, stat: 15, type: 'bath', label: 'Bowl', bgColor: 'bg-teal-100' },
+            { icon: '⛲', price: 30, stat: 25, type: 'bath', label: 'Bowl', bgColor: 'bg-teal-100' },
           ]
         },
         {
           title: 'BIRD FEEDERS',
           items: [
-            { icon: '🪵', price: 10, stat: 15, type: 'feeder', label: 'Bagel', bgColor: 'bg-yellow-100' },
+            { icon: '🪵', price: 10, stat: 5, type: 'feeder', label: 'Bagel', bgColor: 'bg-yellow-100' },
             { icon: '🫙', price: 20, stat: 15, type: 'feeder', label: 'Seed', bgColor: 'bg-yellow-100' },
-            { icon: '⚖', price: 30, stat: 15, type: 'feeder', label: 'Cob', bgColor: 'bg-yellow-100' },
+            { icon: '⚖', price: 30, stat: 25, type: 'feeder', label: 'Cob', bgColor: 'bg-yellow-100' },
           ]
         }
       ]
@@ -378,6 +378,9 @@ const App = () => {
     if (isRollingLuck || isRollingChance) return;
     
     if (buttonMode === 'dice') {
+        if (money < 1) return; // Prevent if no money
+        setMoney(prev => prev - 1); // Cost $1
+
         setLuckValue(null);
         setFeatherCount(null);
         setMultiplierDisplay(null);
@@ -530,7 +533,8 @@ const App = () => {
     capture: { initial: { opacity: 0, scale: 0.9 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.9 } }
   }), []);
 
-  const transitionSpring = useMemo(() => ({ type: 'spring', damping: 25, stiffness: 200 }), []);
+  // UPDATED: Snappier spring transition (higher stiffness, lower damping/mass)
+  const transitionSpring = useMemo(() => ({ type: 'spring', damping: 30, stiffness: 500, mass: 0.8 }), []);
 
   return (
     // Changed h-screen to h-[100dvh] for mobile browser support
@@ -551,7 +555,7 @@ const App = () => {
                     animate={{ opacity: 1, y: 0, x: "-50%" }}
                     exit={{ opacity: 0, y: -10, x: "-50%" }}
                     transition={{ duration: 0.3 }}
-                    className="absolute top-24 left-1/2 w-[85%] max-w-sm h-auto min-h-[4rem] py-3 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl flex items-center justify-center z-[95] pointer-events-auto cursor-pointer active:scale-95"
+                    className="absolute top-24 left-1/2 w-[85%] max-w-sm h-auto min-h-[4rem] py-3 bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl rounded-lg flex items-center justify-center z-[95] pointer-events-auto cursor-pointer active:scale-95"
                 >
                     <AnimatePresence mode='wait'>
                         <motion.span 
@@ -559,11 +563,11 @@ const App = () => {
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -5 }}
-                            className="text-black text-sm font-black tracking-wide text-center px-4 leading-tight select-none flex items-center justify-center gap-2"
+                            className="text-black text-sm font-bold tracking-wide text-center px-4 leading-tight select-none flex items-center justify-center gap-2"
                         >
                             {specialMessage || tutorialMessages[textIndex]}
                             {(specialMessage || textIndex === tutorialMessages.length - 1) && (
-                                <span className="text-red-500 font-black text-lg animate-pulse">✖</span>
+                                <span className="text-red-500 font-bold text-lg animate-pulse">✖</span>
                             )}
                         </motion.span>
                     </AnimatePresence>
@@ -579,23 +583,24 @@ const App = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 // UPDATED: Background is dark overlay, not teal
-                className="absolute inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-8 backdrop-blur-sm"
+                className="absolute inset-0 z-[100] bg-black/60 flex flex-col items-center justify-center p-8 backdrop-blur-md"
             >
                 {/* Catching Container - Polished */}
-                {/* UPDATED: Changed from teal to blue to match camera button */}
-                <div className="w-[90%] max-w-2xl bg-blue-900/80 border-4 border-white/20 rounded-3xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex flex-col gap-10 relative overflow-hidden">
+                {/* UPDATED: Slimmer border, shadow-2xl, lighter bg */}
+                <div className="w-[90%] max-w-4xl bg-blue-900/90 backdrop-blur-xl border border-white/30 rounded-2xl p-8 shadow-2xl flex flex-col gap-10 relative overflow-hidden items-center">
                     
                     {/* Dotted Background Pattern inside Modal */}
                     <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,white_2px,transparent_2px)] [background-size:24px_24px] pointer-events-none" />
 
-                    {/* Viewfinder Corners - kept for "camera" feel but lighter, changed to blue tint */}
-                    <div className="absolute top-4 left-4 w-8 h-8 border-t-4 border-l-4 border-blue-200/50 rounded-tl-lg" />
-                    <div className="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-blue-200/50 rounded-tr-lg" />
-                    <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-blue-200/50 rounded-bl-lg" />
-                    <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-blue-200/50 rounded-br-lg" />
+                    {/* Viewfinder Corners - kept for "camera" feel but thinner */}
+                    <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-blue-200/50 rounded-tl-lg" />
+                    <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-blue-200/50 rounded-tr-lg" />
+                    <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-blue-200/50 rounded-bl-lg" />
+                    <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-blue-200/50 rounded-br-lg" />
 
-                    <div className="text-center relative z-10">
-                        <h2 className="text-3xl font-black italic tracking-widest uppercase text-white drop-shadow-[0_2px_0px_rgba(0,0,0,1)]">
+                    {/* Header Text Container with fixed height to prevent resizing */}
+                    <div className="text-center relative z-10 h-8 flex items-center justify-center w-full">
+                        <h2 className="text-2xl font-bold italic tracking-widest uppercase text-white drop-shadow-md whitespace-nowrap">
                             {/* Simplified States */}
                             {focusPhase === 'success' ? (
                                 <span className="text-green-400">GOTCHA!</span>
@@ -611,11 +616,11 @@ const App = () => {
                     <div className="relative w-full h-32 flex items-center justify-center z-10">
                         
                         {/* Track - Changed to Blue */}
-                        <div className="absolute left-0 right-0 h-4 bg-blue-950/60 rounded-full overflow-hidden border-2 border-blue-500 shadow-inner">
-                             {/* Range Highlight - UPDATED: Changed from Orange to Teal */}
+                        <div className="absolute left-0 right-0 h-4 bg-blue-950/60 rounded-full overflow-hidden border border-blue-500/50 shadow-inner">
+                             {/* Range Highlight - UPDATED: Brighter Glowing Teal */}
                              {luckValue && (
                                 <div 
-                                    className="absolute h-full bg-teal-400 opacity-60"
+                                    className="absolute h-full bg-teal-300 opacity-80 shadow-[0_0_15px_#5eead4] border-r border-l border-teal-200/50"
                                     style={{
                                         left: `${Math.max(0, luckValue - (chanceLevel * activeMultiplier))}%`,
                                         width: `${Math.min(100, (chanceLevel * activeMultiplier) * 2)}%`
@@ -630,11 +635,11 @@ const App = () => {
                                 className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-1 z-20"
                                 style={{ left: `${luckValue}%` }} 
                             >
-                                <div className="w-1 h-8 bg-pink-500 absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 shadow-[0_0_10px_#ec4899]" />
+                                <div className="w-0.5 h-8 bg-pink-500 absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 shadow-[0_0_10px_#ec4899]" />
                                 {/* Number Display */}
-                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-pink-500 text-white text-lg font-black px-2 py-0.5 rounded-md border-2 border-white shadow-lg min-w-[2rem] text-center">
+                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-pink-500 text-white text-lg font-bold px-2 py-0.5 rounded-md border border-white/50 shadow-lg min-w-[2rem] text-center">
                                     {luckValue}
-                                    <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-2 h-2 bg-pink-500 rotate-45 border-b-2 border-r-2 border-white" />
+                                    <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-pink-500 rotate-45" />
                                 </div>
                             </div>
                         )}
@@ -643,16 +648,18 @@ const App = () => {
                         <AnimatePresence mode="popLayout">
                             <motion.div
                                 key={teasePosition} // Rerenders on position change
-                                className="absolute top-1/2 -translate-y-1/2 z-30 text-5xl filter brightness-0 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]"
-                                initial={{ opacity: 0, scale: 0.5, left: `${teasePosition}%` }}
+                                // UPDATED: Changed positioning to top-1/2 with y translation to ensure robust vertical centering + offset
+                                className="absolute top-1/2 z-30 text-5xl filter brightness-0 drop-shadow-md"
+                                initial={{ opacity: 0, scale: 0.5, left: `${teasePosition}%`, y: "-70%" }}
                                 animate={{ 
                                     opacity: focusPhase === 'miss' ? 0 : 1, 
                                     scale: focusPhase === 'miss' ? 2 : 1, 
                                     left: `${teasePosition}%`,
+                                    y: "-70%", // Explicitly animate y to keep it stable
                                     // UPDATED: Always brightness(0) to keep silhouette black, success adds white glow
                                     filter: focusPhase === 'success' 
                                         ? "brightness(0) drop-shadow(0 0 10px white)" 
-                                        : "brightness(0) drop-shadow(0 4px 4px rgba(0,0,0,0.5))"
+                                        : "brightness(0) drop-shadow(0 4px 4px rgba(0,0,0,0.3))"
                                 }}
                                 exit={{ opacity: 0, scale: 0 }}
                                 transition={{ 
@@ -669,7 +676,7 @@ const App = () => {
                                             initial={{ scale: 0.8, opacity: 0 }}
                                             animate={{ scale: 2, opacity: 0 }}
                                             transition={{ duration: 0.8, repeat: Infinity }}
-                                            className="absolute inset-0 border-4 border-green-400 rounded-full"
+                                            className="absolute inset-0 border-2 border-green-400 rounded-full"
                                         />
                                     )}
                                     {/* Miss Cross */}
@@ -686,9 +693,9 @@ const App = () => {
                             </motion.div>
                         </AnimatePresence>
                     </div>
-                    {/* UPDATED: Changed 'Chance Range' from Orange to Teal text */}
-                    <div className="text-center text-xs font-bold text-blue-200/70 uppercase tracking-widest relative z-10 bg-blue-900/50 py-2 rounded-full mx-auto px-6 border border-white/10">
-                        Chance Range: <span className="text-teal-300 text-lg mx-1">{luckValue ? `${Math.max(0, luckValue - (chanceLevel * activeMultiplier))} - ${Math.min(100, luckValue + (chanceLevel * activeMultiplier))}` : 'ALL'}</span>
+                    {/* UPDATED: Removed bubble styling (bg, border, rounded) and kept text centered */}
+                    <div className="w-fit mx-auto text-center text-xs font-bold text-blue-200/70 uppercase tracking-widest relative z-10 py-2 whitespace-nowrap">
+                        Chance Range: <span className="text-teal-300 text-base mx-1">{luckValue ? `${Math.max(0, luckValue - (chanceLevel * activeMultiplier))} - ${Math.min(100, luckValue + (chanceLevel * activeMultiplier))}` : 'ALL'}</span>
                     </div>
                 </div>
             </motion.div>
@@ -703,7 +710,7 @@ const App = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-6 backdrop-blur-sm"
+                className="absolute inset-0 z-[100] bg-black/60 flex flex-col items-center justify-center p-6 backdrop-blur-md"
             >
                 {/* Wrapper for Card */}
                 <div className="relative w-full max-w-sm flex flex-col items-center">
@@ -714,21 +721,21 @@ const App = () => {
                     <motion.div 
                         initial={{ scale: 0.8, rotate: -5 }}
                         animate={{ scale: 1, rotate: 0 }}
-                        className="w-full bg-blue-400 border-4 border-black rounded-3xl p-6 flex flex-col items-center gap-4 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden"
+                        className="w-full bg-blue-400/90 border border-white/20 rounded-3xl p-6 flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden backdrop-blur-sm"
                     >
                         {/* Background Pattern on Card */}
                         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,white_2px,transparent_2px)] [background-size:16px_16px] pointer-events-none" />
 
                         {/* Header Ribbon */}
-                        <div className="bg-white border-2 border-black px-6 py-2 rounded-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-10 transform -rotate-1">
-                            <h1 className="text-xl font-black text-black tracking-widest uppercase">
+                        <div className="bg-white border border-slate-200 px-6 py-2 rounded-full shadow-md z-10 transform -rotate-1">
+                            <h1 className="text-xl font-bold text-black tracking-widest uppercase">
                                 {isRevealed ? "NEW BIRD!" : "IDENTIFYING..."}
                             </h1>
                         </div>
 
                         {/* Photo Frame */}
-                        <div className="w-64 h-64 bg-white p-4 pb-12 border-4 border-black shadow-lg rotate-1 flex flex-col items-center justify-center relative mt-4">
-                            <div className="w-full h-full bg-slate-200 border-2 border-black/10 overflow-hidden relative flex items-center justify-center">
+                        <div className="w-64 h-64 bg-white p-4 pb-12 border border-slate-300 shadow-xl rotate-1 flex flex-col items-center justify-center relative mt-4 transform transition-all">
+                            <div className="w-full h-full bg-slate-100 border border-slate-200 overflow-hidden relative flex items-center justify-center shadow-inner">
                                 {/* Sunburst for reveal */}
                                 {isRevealed && (
                                     <motion.div 
@@ -761,7 +768,7 @@ const App = () => {
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         onClick={() => setIsCaptureScreenOpen(false)}
-                                        className="px-8 py-3 bg-green-500 rounded-xl font-black text-white text-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:scale-95 transition-transform hover:bg-green-400"
+                                        className="px-8 py-3 bg-green-500/90 rounded-xl font-bold text-white text-xl border border-green-400 shadow-lg active:scale-95 transition-all hover:bg-green-400 hover:shadow-green-500/30"
                                     >
                                         COLLECT
                                     </motion.button>
@@ -777,7 +784,7 @@ const App = () => {
                                                 key={i}
                                                 animate={{ scale: [1, 1.5, 1] }}
                                                 transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                                                className="w-3 h-3 bg-black rounded-full" 
+                                                className="w-3 h-3 bg-black/50 rounded-full" 
                                             />
                                         ))}
                                     </motion.div>
@@ -793,7 +800,7 @@ const App = () => {
       {/* Mystery Bird Overlay */}
       {mysteryBird && (
         <div 
-            className="absolute z-[100] text-9xl pointer-events-none filter brightness-0 select-none drop-shadow-2xl"
+            className="absolute z-[100] text-9xl pointer-events-none filter brightness-0 select-none drop-shadow-2xl opacity-90"
             style={{ 
                 top: `${mysteryBird.y}%`, 
                 left: `${mysteryBird.x}%`, 
@@ -829,7 +836,7 @@ const App = () => {
             >
                 <button 
                     onClick={confirmPendingPurchase}
-                    className="bg-white px-6 py-2 rounded-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-3 active:scale-95"
+                    className="bg-white/95 backdrop-blur-sm px-6 py-2 rounded-full border border-slate-200 shadow-xl flex items-center gap-3 active:scale-95 hover:bg-white"
                 >
                     <span className="text-2xl">{pendingItem.icon}</span>
                     <div className="flex flex-col items-start leading-none">
@@ -845,7 +852,7 @@ const App = () => {
                                     {pendingItem.type === 'flower' ? 'CHANCE +2' : 'LUCK +3'}
                                 </span>
                                 <div className="flex items-baseline gap-1">
-                                    <span className="text-lg font-black text-green-600">${pendingItem.price || 1}</span>
+                                    <span className="text-lg font-bold text-green-600">${pendingItem.price || 1}</span>
                                 </div>
                             </>
                         )}
@@ -864,13 +871,13 @@ const App = () => {
                     initial={{ scale: 0, rotate: -20 }}
                     animate={{ scale: 1, rotate: 0 }}
                     exit={{ scale: 0, opacity: 0 }}
-                    className="relative w-40 h-40 bg-pink-400 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-3xl flex flex-col items-center justify-center pointer-events-auto"
+                    className="relative w-40 h-40 bg-pink-400/90 backdrop-blur-sm border border-pink-500/50 shadow-2xl rounded-2xl flex flex-col items-center justify-center pointer-events-auto"
                 >
-                    <div className="absolute -top-5 bg-white px-3 py-1 border-2 border-black rounded-full font-black text-xs tracking-wider shadow-sm transform -rotate-3 text-black">
+                    <div className="absolute -top-5 bg-white px-3 py-1 border border-slate-200 rounded-full font-bold text-xs tracking-wider shadow-md transform -rotate-3 text-black">
                         LUCKY NUMBER
                     </div>
                     <motion.div 
-                        className="text-7xl font-black tabular-nums tracking-tighter text-white"
+                        className="text-7xl font-bold tabular-nums tracking-tighter text-white drop-shadow-md"
                         animate={isFinalResult ? { scale: [1, 1.3, 1] } : {}}
                         transition={{ duration: 0.3 }}
                     >
@@ -891,10 +898,10 @@ const App = () => {
                     animate={{ scale: 1, rotate: 0 }}
                     exit={{ scale: 0, opacity: 0 }}
                     // UPDATED: Changed bg-orange-400 to bg-teal-400
-                    className="relative w-64 h-32 bg-teal-400 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-3xl flex flex-col items-center justify-center pointer-events-auto"
+                    className="relative w-64 h-32 bg-teal-400/90 backdrop-blur-sm border border-teal-500/50 shadow-2xl rounded-2xl flex flex-col items-center justify-center pointer-events-auto"
                 >
                     {/* Header Label */}
-                    <div className="absolute -top-5 bg-white px-3 py-1 border-2 border-black rounded-full font-black text-xs tracking-wider shadow-sm transform rotate-2 text-black">
+                    <div className="absolute -top-5 bg-white px-3 py-1 border border-slate-200 rounded-full font-bold text-xs tracking-wider shadow-md transform rotate-2 text-black">
                         CHANCE
                     </div>
 
@@ -903,17 +910,26 @@ const App = () => {
                         {multiplierDisplay && (
                             <motion.div
                                 initial={{ scale: 0, rotate: -15, opacity: 0 }}
-                                animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                                animate={{ 
+                                    scale: multiplierDisplay === '3x' ? [1, 1.2, 1] : 1, 
+                                    rotate: multiplierDisplay === '3x' ? [0, -10, 10, 0] : 0,
+                                    opacity: 1 
+                                }}
                                 exit={{ scale: 0, opacity: 0 }}
+                                transition={{ 
+                                    duration: 0.5, 
+                                    repeat: multiplierDisplay === '3x' ? Infinity : 0,
+                                    repeatType: "reverse"
+                                }}
                                 key={multiplierDisplay} 
-                                className={`absolute -top-6 -right-4 border-2 border-black rounded-full w-12 h-12 flex items-center justify-center z-20 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+                                className={`absolute -top-6 -right-4 border border-black/10 rounded-full w-12 h-12 flex items-center justify-center z-20 shadow-lg
                                     ${multiplierDisplay === '3x' 
-                                        ? 'bg-yellow-400 shadow-[0_0_20px_rgba(253,224,71,0.8)] border-yellow-600 animate-pulse' 
+                                        ? 'bg-yellow-400 shadow-[0_0_20px_rgba(253,224,71,0.5)] border-yellow-600 animate-pulse' 
                                         : (multiplierDisplay === '2x' ? 'bg-yellow-300' : 'bg-white')
                                     }
                                 `}
                             >
-                                <span className="text-xl font-black text-black">{multiplierDisplay}</span>
+                                <span className="text-xl font-bold text-black">{multiplierDisplay}</span>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -927,10 +943,28 @@ const App = () => {
                              return (
                                 <motion.div
                                     key={i}
-                                    className={`w-14 h-14 bg-slate-900 rounded-lg flex items-center justify-center text-4xl overflow-hidden shadow-inner`}
-                                    animate={isFinalResult ? { scale: [1, 1.2, 1] } : {}}
-                                    transition={{ delay: i * 0.1, duration: 0.3 }}
+                                    className={`w-14 h-14 bg-slate-900 rounded-lg flex items-center justify-center text-4xl overflow-hidden shadow-inner relative
+                                        ${isThreeOfAKind ? 'border-2 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)]' : ''}
+                                    `}
+                                    animate={isFinalResult ? { 
+                                        scale: isThreeOfAKind ? [1, 1.1, 1] : [1, 1.2, 1],
+                                        borderColor: isThreeOfAKind ? ['#facc15', '#ffffff', '#facc15'] : undefined
+                                    } : {}}
+                                    transition={{ 
+                                        duration: isThreeOfAKind ? 0.5 : 0.3, 
+                                        repeat: isThreeOfAKind ? Infinity : 0,
+                                        delay: i * 0.1 
+                                    }}
                                 >
+                                    {/* Optional background glow inside the reel */}
+                                    {isThreeOfAKind && (
+                                        <motion.div 
+                                            className="absolute inset-0 bg-yellow-500/20"
+                                            animate={{ opacity: [0.2, 0.5, 0.2] }}
+                                            transition={{ duration: 0.5, repeat: Infinity }}
+                                        />
+                                    )}
+
                                     {/* Only render content if slot is not null */}
                                     {slot && (
                                         <motion.div
@@ -954,7 +988,7 @@ const App = () => {
 
       {/* Top Bar */}
       <header className="w-full h-20 shrink-0 z-30 px-4 py-3 flex items-center gap-3 relative">
-        <div className="absolute inset-0 z-0 overflow-hidden rounded-none border-b-4 border-black shadow-lg bg-amber-400">
+        <div className="absolute inset-0 z-0 overflow-hidden rounded-none border-b border-black/10 shadow-lg bg-amber-400/90 backdrop-blur-md">
              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:8px_8px] z-0"></div>
              
              {/* UPDATED: Day Transition Fill Animation Logic for Fade Out */}
@@ -1002,7 +1036,7 @@ const App = () => {
                         onClick={() => {
                            // Potentially handle luck click here too
                         }}
-                        className="relative h-full z-20 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex-1 rounded-lg overflow-hidden group"
+                        className="relative h-full z-20 border border-black/10 shadow-sm flex-1 rounded-lg overflow-hidden group hover:shadow-md transition-shadow"
                         style={{
                             // UPDATED: Changed orange (#fb923c) to teal (#2dd4bf) in gradient
                             background: 'linear-gradient(135deg, #f472b6 50%, #2dd4bf 50%)' 
@@ -1010,14 +1044,14 @@ const App = () => {
                     >
                         {/* Top Left - Pink - Lucky Number */}
                         <div className="absolute top-1 left-2">
-                             <span className="text-xl font-black text-white drop-shadow-md">
+                             <span className="text-xl font-bold text-white drop-shadow-md">
                                  {item.value !== null ? item.value : ''}
                              </span>
                         </div>
 
                         {/* Bottom Right - Orange - Feather Count */}
                         <div className="absolute bottom-0 right-2">
-                             <span className="text-xl font-black text-black">
+                             <span className="text-xl font-bold text-black/80">
                                  {item.subValue !== null ? item.subValue : ''}
                              </span>
                         </div>
@@ -1044,18 +1078,18 @@ const App = () => {
                 }}
                 whileTap={item.type === 'profile' || isDayButton ? { scale: 0.95 } : {}}
                 className={`
-                    relative h-full z-20 bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
+                    relative h-full z-20 bg-white/80 backdrop-blur-sm border border-white/50 shadow-sm
                     flex flex-col items-center justify-center text-center select-none
                     ${item.type === 'profile' ? 'aspect-square rounded-full flex-none cursor-pointer' : 'flex-1 rounded-lg'}
                     ${isDayButton ? 'cursor-pointer active:scale-95 transition-transform' : ''}
                 `}
               >
                  {item.type === 'profile' ? (
-                    <span className="text-2xl filter drop-shadow-[0_2px_3px_rgba(0,0,0,0.4)]">{item.icon}</span>
+                    <span className="text-2xl filter drop-shadow-sm opacity-80">{item.icon}</span>
                  ) : (
                     <>
-                        <span className="text-[10px] font-black opacity-60 leading-tight tracking-widest uppercase text-slate-500">{item.label}</span>
-                        <span className={`text-base font-black leading-none ${item.color || 'text-slate-900'} min-h-[1em]`}>
+                        <span className="text-[10px] font-bold opacity-60 leading-tight tracking-widest uppercase text-slate-500">{item.label}</span>
+                        <span className={`text-base font-bold leading-none ${item.color || 'text-slate-900'} min-h-[1em]`}>
                             <AnimatePresence mode='wait'>
                                 <motion.span 
                                     key={item.value} 
@@ -1080,20 +1114,27 @@ const App = () => {
         onClick={closeAllMenus}
       >
         
-        {/* Background Pattern */}
-        <div 
-            className="absolute inset-0 z-0 pointer-events-none"
-            style={{
-                backgroundColor: '#4ade80',
-                backgroundImage: `
-                    linear-gradient(45deg, #16a34a 25%, transparent 25%, transparent 75%, #16a34a 75%),
-                    linear-gradient(45deg, #16a34a 25%, transparent 25%, transparent 75%, #16a34a 75%)
-                `,
-                backgroundPosition: '0 0, 30px 30px',
-                backgroundSize: '60px 60px'
-            }}
-        />
-        <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.3)_100%)] pointer-events-none"></div>
+        {/* NEW BACKGROUND - Simpler, Softer with Blur */}
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-green-500">
+             {/* Lighting Gradient (Vignette Light Center) */}
+             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,#86efac,transparent_70%)] opacity-60" />
+             
+             {/* Soft Checkerboard Pattern with Blur */}
+             <div 
+                className="absolute inset-0 opacity-10 blur-[1px]" 
+                style={{
+                    backgroundImage: `
+                        linear-gradient(45deg, #052e16 25%, transparent 25%, transparent 75%, #052e16 75%),
+                        linear-gradient(45deg, #052e16 25%, transparent 25%, transparent 75%, #052e16 75%)
+                    `,
+                    backgroundPosition: '0 0, 30px 30px',
+                    backgroundSize: '60px 60px'
+                }}
+             />
+             
+             {/* Dark Vignette Edges */}
+             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)]"></div>
+        </div>
 
         {/* Decorative Variety Items (Replaces Static Telescope/Gift) */}
         <div className="absolute bottom-2 left-2 z-8 pointer-events-none flex items-end gap-1">
@@ -1153,14 +1194,15 @@ const App = () => {
         </div>
 
         {/* Left Side Meters */}
-        <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 bg-red-900 rounded-r-2xl pl-3 pr-2 py-4 flex flex-col gap-4 z-20 border-y-2 border-r-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        {/* UPDATED: Changed background color from bg-red-900/80 to bg-red-600/90 */}
+        <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 bg-red-600/90 backdrop-blur-md rounded-r-2xl pl-3 pr-2 py-4 flex flex-col gap-4 z-20 border-y border-r border-white/20 shadow-xl">
           {[
-            { icon: '📈', color: 'bg-blue-500', value: 50 },
+            { icon: '📈', color: 'bg-blue-500', value: Math.min(100, day * 10) },
             { icon: '🚘', color: 'bg-slate-400', value: 50 } // Changed icon to 🚘
           ].map((meter, i) => (
             <div key={meter.icon} className="relative flex flex-col items-center gap-1">
               <span className="text-xl filter drop-shadow-[0_2px_3px_rgba(0,0,0,0.4)]">{meter.icon}</span>
-              <div className="w-6 h-24 bg-slate-800 border-2 border-black shadow-inner rounded-lg overflow-hidden flex flex-col-reverse">
+              <div className="w-6 h-24 bg-slate-900/50 border border-white/10 shadow-inner rounded-lg overflow-hidden flex flex-col-reverse">
                 <motion.div 
                   className={`w-full ${meter.color}`}
                   initial={{ height: '0%' }}
@@ -1231,7 +1273,7 @@ const App = () => {
 
       {/* Bottom Section */}
       <div className="w-full h-auto min-h-[140px] z-30 relative shrink-0">
-        <div className="absolute inset-0 bg-[#2c1810] border-t-4 border-black shadow-[0_-4px_10px_rgba(0,0,0,0.3)]">
+        <div className="absolute inset-0 bg-[#2c1810]/90 backdrop-blur-md border-t border-white/20 shadow-[-4px_0_20px_rgba(0,0,0,0.5)]">
             <div className="absolute inset-0 opacity-10 pointer-events-none" 
                  style={{ 
                      backgroundImage: 'linear-gradient(to bottom, #e2e8f0 2px, transparent 2px)', 
@@ -1249,22 +1291,22 @@ const App = () => {
                     closeAllMenus();
                     setIsShopOpen(true);
                 }}
-                whileTap={{ scale: 0.95, y: 4, boxShadow: '0px 0px 0px 0px rgba(0,0,0,1)' }}
-                className="h-16 w-16 rounded-2xl bg-amber-400 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group flex items-center justify-center"
+                whileTap={{ scale: 0.95, y: 4 }}
+                className="h-16 w-16 rounded-2xl bg-amber-400/90 backdrop-blur-sm border border-amber-300 shadow-lg relative overflow-hidden group flex items-center justify-center hover:bg-amber-300 transition-colors"
             >
-                 <span className="text-3xl filter drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)] relative z-10 group-active:scale-90 transition-transform">🛍️</span>
+                 <span className="text-3xl filter drop-shadow-md relative z-10 group-active:scale-90 transition-transform">🛍️</span>
             </motion.button>
 
             {/* Center Main Action - Camera */}
             <motion.button 
                 onClick={handleCameraClick}
                 disabled={isCameraCoolingDown || money < 1}
-                whileTap={(!isCameraCoolingDown && money >= 1) ? { scale: 0.98, y: 4, boxShadow: '0px 0px 0px 0px rgba(0,0,0,1)' } : {}}
-                className={`h-20 w-24 mb-1 rounded-3xl border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group flex items-center justify-center transition-colors duration-200
-                    ${isCameraCoolingDown ? 'bg-red-500 cursor-not-allowed' : (money < 1 ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600')}
+                whileTap={(!isCameraCoolingDown && money >= 1) ? { scale: 0.98, y: 4 } : {}}
+                className={`h-20 w-24 mb-1 rounded-3xl border border-white/30 shadow-xl relative overflow-hidden group flex items-center justify-center transition-all duration-200
+                    ${isCameraCoolingDown ? 'bg-red-500/90 cursor-not-allowed grayscale' : (money < 1 ? 'bg-slate-400/90 cursor-not-allowed' : 'bg-blue-600/90 hover:bg-blue-500/90 backdrop-blur-sm')}
                 `}
             >
-                 <span className="text-4xl filter drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] relative z-10 -mt-2 group-active:rotate-12 transition-transform duration-300">📷</span>
+                 <span className="text-4xl filter drop-shadow-lg relative z-10 -mt-2 group-active:rotate-12 transition-transform duration-300">📷</span>
                  {/* Cooldown Overlay (optional visual cue, but the button is red now) */}
                  {isCameraCoolingDown && <div className="absolute inset-0 bg-black/10" />}
             </motion.button>
@@ -1272,17 +1314,18 @@ const App = () => {
              {/* Right Action - Luck */}
              <motion.button 
                 onClick={handleLuckClick}
-                whileTap={{ scale: 0.95, y: 4, boxShadow: '0px 0px 0px 0px rgba(0,0,0,1)' }}
+                whileTap={{ scale: 0.95, y: 4 }}
                 // UPDATED: Changed bg-orange-400 to bg-teal-400
-                className={`h-16 w-16 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group flex items-center justify-center transition-colors duration-500
-                    ${buttonMode === 'feather' ? 'bg-teal-400' : 'bg-pink-400'}
+                className={`h-16 w-16 rounded-2xl border border-white/30 shadow-lg relative overflow-hidden group flex items-center justify-center transition-colors duration-500
+                    ${buttonMode === 'feather' ? 'bg-teal-400/90' : (money < 1 ? 'bg-slate-400/90 cursor-not-allowed' : 'bg-pink-400/90')}
+                    backdrop-blur-sm hover:brightness-110
                 `}
             >
                  <motion.span 
                     key={buttonMode}
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="text-3xl filter drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)] relative z-10 group-active:scale-90"
+                    className="text-3xl filter drop-shadow-md relative z-10 group-active:scale-90"
                  >
                     {buttonMode === 'feather' ? '🪶' : '🎲'}
                  </motion.span>
@@ -1302,29 +1345,29 @@ const App = () => {
                 <motion.div
                     {...modalVariants.profile}
                     transition={transitionSpring}
-                    className="absolute top-0 left-0 right-0 h-2/3 z-50 bg-blue-200 border-b-4 border-black shadow-[0_10px_0px_0px_rgba(0,0,0,0.2)] rounded-b-3xl flex flex-col overflow-hidden"
+                    className="absolute top-0 left-0 right-0 h-2/3 z-50 bg-blue-200/90 backdrop-blur-xl border-b border-white/30 shadow-2xl rounded-b-3xl flex flex-col overflow-hidden"
                 >
                     <CloseButton onClick={() => setIsProfileOpen(false)} />
                     
                     <div className="w-full flex-1 flex flex-col p-6 gap-4 mt-8">
-                         <div className="text-2xl font-black text-blue-800 tracking-wider text-center mb-2">PROFILE</div>
+                         <div className="text-2xl font-bold text-blue-800 tracking-wider text-center mb-2">PROFILE</div>
                          
                          {/* Player Section */}
-                         <div className="bg-white/50 rounded-xl p-4 border-2 border-blue-300/50 flex flex-col gap-2">
-                             <div className="text-xs font-black text-blue-400 uppercase tracking-widest">PLAYER</div>
-                             <div className="h-12 bg-blue-100 rounded-lg animate-pulse" />
+                         <div className="bg-white/40 rounded-xl p-4 border border-white/50 flex flex-col gap-2">
+                             <div className="text-xs font-bold text-blue-800/60 uppercase tracking-widest">PLAYER</div>
+                             <div className="h-12 bg-white/50 rounded-lg animate-pulse" />
                          </div>
 
                          {/* Other Section */}
-                         <div className="bg-white/50 rounded-xl p-4 border-2 border-blue-300/50 flex flex-col gap-2">
-                             <div className="text-xs font-black text-blue-400 uppercase tracking-widest">OTHER</div>
-                             <div className="h-12 bg-blue-100 rounded-lg animate-pulse" />
+                         <div className="bg-white/40 rounded-xl p-4 border border-white/50 flex flex-col gap-2">
+                             <div className="text-xs font-bold text-blue-800/60 uppercase tracking-widest">OTHER</div>
+                             <div className="h-12 bg-white/50 rounded-lg animate-pulse" />
                          </div>
 
                          {/* Stats Section */}
-                         <div className="bg-white/50 rounded-xl p-4 border-2 border-blue-300/50 flex flex-col gap-2 flex-1">
-                             <div className="text-xs font-black text-blue-400 uppercase tracking-widest">STATS</div>
-                             <div className="flex-1 bg-blue-100 rounded-lg animate-pulse" />
+                         <div className="bg-white/40 rounded-xl p-4 border border-white/50 flex flex-col gap-2 flex-1">
+                             <div className="text-xs font-bold text-blue-800/60 uppercase tracking-widest">STATS</div>
+                             <div className="flex-1 bg-white/50 rounded-lg animate-pulse" />
                          </div>
                     </div>
                 </motion.div>
@@ -1344,14 +1387,14 @@ const App = () => {
                 <motion.div
                     {...modalVariants.book}
                     transition={transitionSpring}
-                    className="absolute top-0 right-0 w-3/4 max-w-sm h-full z-50 bg-purple-200 border-l-4 border-black shadow-[-10px_0px_0px_0px_rgba(0,0,0,0.2)] flex flex-col"
+                    className="absolute top-0 right-0 w-3/4 max-w-sm h-full z-50 bg-purple-200/90 backdrop-blur-xl border-l border-white/30 shadow-2xl flex flex-col"
                 >
-                     <div className="p-4 border-b-4 border-purple-300 bg-white flex items-center justify-between shrink-0">
+                     <div className="p-4 border-b border-purple-300/50 bg-white/60 flex items-center justify-between shrink-0">
                          <div>
-                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                                 {bookPage === 0 ? "Collection" : "Favorites"}
                              </div>
-                             <div className="text-xl font-black text-slate-800">
+                             <div className="text-xl font-bold text-slate-800">
                                 {bookPage === 0 ? "BIRDS" : "PAGE 2"}
                              </div>
                          </div>
@@ -1367,7 +1410,7 @@ const App = () => {
                                         initial={{ opacity: 0, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: index * 0.03 }}
-                                        className="aspect-square flex items-center justify-center opacity-40 select-none bg-purple-100/50 rounded-lg overflow-hidden"
+                                        className="aspect-square flex items-center justify-center opacity-40 select-none bg-white/30 rounded-lg overflow-hidden border border-white/20"
                                     >
                                         <span className="text-4xl filter grayscale brightness-0 drop-shadow-sm leading-none">
                                             {bird}
@@ -1390,7 +1433,7 @@ const App = () => {
                          <motion.button
                             onClick={() => setBookPage(page => page === 0 ? 1 : 0)}
                             whileTap={{ scale: 0.9, rotate: -10 }}
-                            className="w-14 h-14 bg-yellow-400 rounded-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center text-2xl"
+                            className="w-14 h-14 bg-yellow-400 rounded-full border border-yellow-300 shadow-lg flex items-center justify-center text-2xl"
                          >
                             ⭐
                          </motion.button>
@@ -1412,7 +1455,8 @@ const App = () => {
                 <motion.div
                     {...modalVariants.shop}
                     transition={transitionSpring}
-                    className={`absolute bottom-0 left-0 right-0 h-2/3 z-[80] border-t-4 border-black shadow-[0_-10px_0px_0px_rgba(0,0,0,0.2)] rounded-t-3xl flex flex-col overflow-hidden transition-colors duration-150 ${shopItems[currentShopPage].bgColor}`}
+                    // UPDATED: Removed transition duration entirely for instant snap
+                    className={`absolute bottom-0 left-0 right-0 h-2/3 z-[80] border-t border-white/30 shadow-2xl rounded-t-3xl flex flex-col overflow-hidden ${shopItems[currentShopPage].bgColor} bg-opacity-95 backdrop-blur-xl`}
                 >
                     <div className="z-50">
                         <CloseButton onClick={() => setIsShopOpen(false)} />
@@ -1421,10 +1465,9 @@ const App = () => {
                     {/* Header - Reduced padding and removed rotation */}
                     <div className="w-full p-4 flex items-center justify-center shrink-0 relative z-10">
                          <div className="relative">
-                             <div className="absolute top-1 left-1 w-full h-full bg-black/20 rounded-xl" />
-                             <div className="relative bg-white border-2 border-black px-6 py-2 rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                             <div className="relative bg-white/90 backdrop-blur-sm border border-black/10 px-6 py-2 rounded-xl shadow-lg">
                                  {/* Reduced text size and tracking */}
-                                 <span className="text-lg font-black text-black tracking-wide">{shopItems[currentShopPage].title}</span>
+                                 <span className="text-lg font-bold text-black tracking-wide">{shopItems[currentShopPage].title}</span>
                              </div>
                          </div>
                     </div>
@@ -1435,7 +1478,7 @@ const App = () => {
                             {shopItems[currentShopPage].sections.map((section, idx) => (
                                 <div key={idx} className="flex flex-col gap-1">
                                     {/* Removed skew (italics styling) */}
-                                    <div className="text-[9px] font-black text-black uppercase tracking-widest pl-1 h-[1.5em]">
+                                    <div className="text-[9px] font-bold text-black/60 uppercase tracking-widest pl-1 h-[1.5em]">
                                         {section.title} &nbsp;
                                     </div>
                                     {/* Reduced gap to fit items */}
@@ -1455,13 +1498,14 @@ const App = () => {
                     </div>
 
                     {/* Footer - Toggle Switch */}
-                    <div className={`w-full p-2 flex justify-center shrink-0 pb-6 border-t-2 border-stone-300/30 transition-colors duration-300 ${shopItems[currentShopPage].bgColor}`}>
+                    {/* UPDATED: Removed transition duration entirely for instant snap */}
+                    <div className={`w-full p-2 flex justify-center shrink-0 pb-6 border-t border-black/5 ${shopItems[currentShopPage].bgColor}`}>
                         <div 
                             onClick={toggleShopPage}
-                            className={`w-20 h-10 rounded-full relative cursor-pointer shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)] border-2 border-black/20 transition-colors duration-300 ${shopItems[currentShopPage].toggleTheme}`}
+                            className={`w-20 h-10 rounded-full relative cursor-pointer shadow-inner border border-black/5 transition-colors duration-300 ${shopItems[currentShopPage].toggleTheme}`}
                         >
                             <motion.div 
-                                className="absolute top-1 bottom-1 w-8 bg-white rounded-full shadow-md border-2 border-black/10"
+                                className="absolute top-1 bottom-1 w-8 bg-white rounded-full shadow-md border border-black/5"
                                 animate={{ left: currentShopPage === 0 ? '4px' : 'calc(100% - 36px)' }}
                                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
                             />
@@ -1485,15 +1529,16 @@ const ActiveItemCard = React.forwardRef(({ item, type, zIndex, bgColor, labelCol
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0, opacity: 0 }}
         transition={{ type: "spring", stiffness: 200, damping: 20 }}
-        className={`pointer-events-auto w-20 h-20 rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center justify-center relative group ${bgColor} ${zIndex}`}
+        className={`pointer-events-auto w-20 h-20 rounded-xl border border-black/10 shadow-lg flex flex-col items-center justify-center relative group ${bgColor} ${zIndex} bg-opacity-95 backdrop-blur-sm`}
     >
-        <div className={`absolute -top-3 ${labelColor} text-[8px] font-black px-1.5 py-0.5 border-2 border-black rounded-full text-white tracking-wider shadow-sm z-10`}>
+        <div className={`absolute -top-3 ${labelColor} text-[8px] font-bold px-1.5 py-0.5 border border-white/20 rounded-full text-white tracking-wider shadow-sm z-10`}>
             {type}
         </div>
-        <div className="text-5xl filter drop-shadow-md leading-none">
+        <div className="text-5xl filter drop-shadow-sm leading-none">
             {item.icon}
         </div>
-        <div className="absolute -bottom-1 -right-1 text-2xl font-black text-white drop-shadow-[0_2px_0px_rgba(0,0,0,1)] z-20 pointer-events-none">
+        {/* UPDATED: Reduced font size from text-2xl to text-xl */}
+        <div className="absolute -bottom-1 -right-1 text-xl font-bold text-white drop-shadow-md z-20 pointer-events-none">
             {item.stat}
         </div>
     </motion.div>
@@ -1504,11 +1549,11 @@ const ShopItem = ({ item, onClick, isSelected }) => (
     <motion.div
         onClick={() => onClick(item)}
         whileTap={{ scale: 0.95 }}
-        animate={isSelected ? { scale: 0.95, borderColor: '#16a34a' } : { scale: 1, borderColor: '#e7e5e4' }}
+        animate={isSelected ? { scale: 0.95, borderColor: '#16a34a' } : { scale: 1, borderColor: 'rgba(0,0,0,0.05)' }}
         // Reduced height from h-16 to h-14 to fit content better on mobile
-        className={`relative rounded-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] border-2 flex items-center justify-center overflow-hidden cursor-pointer h-14
-        ${item.bgColor || 'bg-white'}
-        ${isSelected ? 'ring-2 ring-green-500 ring-offset-2' : ''}`}
+        className={`relative rounded-xl shadow-sm border flex items-center justify-center overflow-hidden cursor-pointer h-14
+        ${item.bgColor || 'bg-white/80 backdrop-blur-sm'}
+        ${isSelected ? 'ring-2 ring-green-500 ring-offset-1' : ''}`}
     >
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
              <span className="text-4xl filter drop-shadow-sm transform -translate-y-0.5">{item.icon}</span>
@@ -1520,9 +1565,9 @@ const ShopItem = ({ item, onClick, isSelected }) => (
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-green-500/80 z-20 flex items-center justify-center"
+                    className="absolute inset-0 bg-green-500/80 z-20 flex items-center justify-center backdrop-blur-[1px]"
                 >
-                    <span className="text-white font-black text-sm uppercase tracking-wider drop-shadow-md">CONFIRM?</span>
+                    <span className="text-white font-bold text-sm uppercase tracking-wider drop-shadow-md">CONFIRM?</span>
                 </motion.div>
             )}
         </AnimatePresence>
@@ -1530,14 +1575,15 @@ const ShopItem = ({ item, onClick, isSelected }) => (
         {/* Updated Stat Number Rendering: Check for item.stat existence */}
         {!isSelected && item.stat && (
             <div className="absolute top-0 left-1 z-10">
-                <span className="text-xl font-black text-white drop-shadow-[0_1.5px_0px_rgba(0,0,0,1)]">{item.stat}</span>
+                {/* UPDATED: Reduced font size from text-xl to text-lg */}
+                <span className="text-lg font-bold text-white drop-shadow-md">{item.stat}</span>
             </div>
         )}
 
         {/* Updated Price Rendering: Smaller font size */}
         {!isSelected && (
             <div className="absolute bottom-0 right-1 z-10">
-                <span className="text-sm font-black text-green-600 drop-shadow-sm">${item.price}</span>
+                <span className="text-sm font-bold text-green-700/80 drop-shadow-sm">${item.price}</span>
             </div>
         )}
     </motion.div>
@@ -1552,7 +1598,7 @@ const SideMenu = ({ item, delay, isActive, onToggle, onSubItemClick }) => (
                     animate={{ opacity: 1, x: -12, scaleX: 1 }}
                     exit={{ opacity: 0, x: 20, scaleX: 0 }}
                     style={{ originX: 1 }}
-                    className="absolute right-full h-14 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl flex items-center px-2 gap-1 z-0"
+                    className="absolute right-full h-14 bg-white/90 backdrop-blur-md border border-slate-200 shadow-lg rounded-xl flex items-center px-2 gap-1 z-0"
                 >
                     {item.subItems.map((subItem) => (
                         <motion.button
@@ -1562,11 +1608,11 @@ const SideMenu = ({ item, delay, isActive, onToggle, onSubItemClick }) => (
                                 onSubItemClick && onSubItemClick(subItem, item.id);
                             }}
                             whileTap={{ scale: 0.8 }}
-                            className="w-10 h-10 rounded-lg border border-transparent flex items-center justify-center text-xl transition-colors relative"
+                            className="w-10 h-10 rounded-lg border border-transparent flex items-center justify-center text-xl transition-colors relative hover:bg-black/5"
                         >
-                            <span className="filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.4)]">{subItem}</span>
+                            <span className="filter drop-shadow-sm">{subItem}</span>
                             {(subItem === '🌱' || subItem === '🌵') && (
-                                <span className="absolute inset-0 flex items-center justify-center text-xl z-10">🔒</span>
+                                <span className="absolute inset-0 flex items-center justify-center text-xl z-10 opacity-70">🔒</span>
                             )}
                         </motion.button>
                     ))}
@@ -1582,10 +1628,10 @@ const SideMenu = ({ item, delay, isActive, onToggle, onSubItemClick }) => (
                 e.stopPropagation();
                 onToggle();
             }}
-            whileTap={{ scale: 0.9, x: 2, y: 2, boxShadow: '0px 0px 0px 0px rgba(0,0,0,1)' }}
-            className={`\n                w-14 h-14 rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] \n                flex items-center justify-center relative overflow-hidden group z-10 transition-colors\n                ${isActive ? 'bg-yellow-300' : 'bg-purple-500'}\n            `}
+            whileTap={{ scale: 0.9, x: 2, y: 2 }}
+            className={`\n                w-14 h-14 rounded-xl border border-white/20 shadow-lg \n                flex items-center justify-center relative overflow-hidden group z-10 transition-colors backdrop-blur-sm\n                ${isActive ? 'bg-yellow-300' : 'bg-purple-500/90'}\n            `}
         >
-            <span className="text-2xl filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.4)] leading-none transition-transform opacity-100 text-white">
+            <span className="text-2xl filter drop-shadow-md leading-none transition-transform opacity-100 text-white">
                 {item.icon}
             </span>
         </motion.button>

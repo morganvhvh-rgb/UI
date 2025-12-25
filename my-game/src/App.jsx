@@ -17,6 +17,8 @@ const App = () => {
   // New State for Catching Phase (Number Line Animation)
   const [isCatching, setIsCatching] = useState(false);
   const [catchTarget, setCatchTarget] = useState(50);
+  const [focusPhase, setFocusPhase] = useState('idle'); // 'idle', 'teasing', 'locked', 'success', 'miss'
+  const [teasePosition, setTeasePosition] = useState(50);
 
   // Luck & Chance States
   const [buttonMode, setButtonMode] = useState('dice'); // 'dice' or 'feather'
@@ -29,6 +31,7 @@ const App = () => {
   // Day State
   const [day, setDay] = useState(1);
   const [isHoldingDay, setIsHoldingDay] = useState(false);
+  const [daySuccess, setDaySuccess] = useState(false);
   
   const [isRollingLuck, setIsRollingLuck] = useState(false);
   const [isRollingChance, setIsRollingChance] = useState(false);
@@ -71,6 +74,7 @@ const App = () => {
   const mysteryBirdTimeoutRef = useRef(null);
   const cameraCooldownRef = useRef(null);
   const catchTimeoutRef = useRef(null);
+  const flashTimeoutRef = useRef(null); // NEW: Separate ref for flash
 
   const tutorialMessages = useMemo(() => [
       "This is your backyard. There's a few things you need to know. ➡",
@@ -87,6 +91,7 @@ const App = () => {
       if (mysteryBirdTimeoutRef.current) clearTimeout(mysteryBirdTimeoutRef.current);
       if (cameraCooldownRef.current) clearTimeout(cameraCooldownRef.current);
       if (catchTimeoutRef.current) clearTimeout(catchTimeoutRef.current);
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     };
   }, []);
 
@@ -194,17 +199,57 @@ const App = () => {
     }
   }, [isCaptureScreenOpen, birdCollection]);
 
-  // Sequence for Catching Animation
+  // Updated Sequence for Catching Animation (Tease Mechanic)
   useEffect(() => {
     if (isCatching) {
-        // Increased duration to 7 seconds
-        // Animation is 5.5s, so this leaves ~1.5s pause at the end
-        catchTimeoutRef.current = setTimeout(() => {
-            setIsCatching(false);
-            setIsCaptureScreenOpen(true);
-        }, 7000); 
+        setFocusPhase('teasing');
+        let teaseCount = 0;
+        const maxTease = 7; // Number of hops before reveal
+        
+        // Tease Loop
+        const teaseInterval = setInterval(() => {
+            if (teaseCount < maxTease) {
+                // Random position for tease
+                setTeasePosition(Math.floor(Math.random() * 90) + 5);
+                teaseCount++;
+            } else {
+                clearInterval(teaseInterval);
+                
+                // Final Reveal
+                setTeasePosition(catchTarget);
+                // We set 'locked' phase briefly just to stop movement before showing result
+                setFocusPhase('locked'); 
+
+                // Determine Success/Failure
+                const range = chanceLevel * activeMultiplier;
+                const min = Math.max(0, luckValue - range);
+                const max = Math.min(100, luckValue + range);
+                const isSuccess = catchTarget >= min && catchTarget <= max;
+
+                // Delay before result animation
+                setTimeout(() => {
+                    if (isSuccess) {
+                        setFocusPhase('success');
+                        // Success -> Capture Screen
+                        setTimeout(() => {
+                            setIsCatching(false);
+                            setIsCaptureScreenOpen(true);
+                        }, 2000);
+                    } else {
+                        setFocusPhase('miss');
+                        // Failure -> Back to game
+                        setTimeout(() => {
+                            setIsCatching(false);
+                            // Removed explicit text message for miss
+                        }, 2000);
+                    }
+                }, 500); // 0.5s pause to see where it landed
+            }
+        }, 600); // Speed of hops
+
+        return () => clearInterval(teaseInterval);
     }
-  }, [isCatching]);
+  }, [isCatching, catchTarget, luckValue, chanceLevel, activeMultiplier]);
 
   // Updated Top Bar Data to include Day state
   const topBarData = useMemo(() => [
@@ -309,7 +354,8 @@ const App = () => {
     }, 3000);
 
     setShowFlash(true);
-    luckTimeoutRef.current = setTimeout(() => setShowFlash(false), 150);
+    // NEW: Use flashTimeoutRef instead of luckTimeoutRef to prevent conflicts
+    flashTimeoutRef.current = setTimeout(() => setShowFlash(false), 150);
 
     if (mysteryBird) {
         setMysteryBird(null);
@@ -319,6 +365,8 @@ const App = () => {
         const target = Math.floor(Math.random() * 99) + 1;
         setCatchTarget(target);
         setIsCatching(true);
+        // Reset focus phase for safety
+        setFocusPhase('idle');
     } else {
         setMultiplierDisplay(null);
         setActiveMultiplier(1); 
@@ -338,7 +386,7 @@ const App = () => {
         setMysteryBird(null);
         setIsRollingLuck(true);
         setIsFinalResult(false);
-        let speed = 50;
+        let speed = 30; // UPDATED: Faster start
         let counter = 0;
         const maxSteps = 12; 
         
@@ -347,7 +395,7 @@ const App = () => {
           setRollingDisplayValue(nextNum);
           counter++;
           if (counter < maxSteps) {
-            speed += (counter * 8); 
+            speed += (counter * 4); // UPDATED: Slower deceleration (stays fast longer)
             luckCycleRef.current = setTimeout(cycle, speed);
           } else {
             setLuckValue(nextNum); 
@@ -372,8 +420,8 @@ const App = () => {
             options[Math.floor(Math.random() * options.length)]
         ];
         const startTime = Date.now();
-        const spinDuration = 1000;
-        const gapDuration = 200; 
+        const spinDuration = 600; // UPDATED: Faster spin duration
+        const gapDuration = 100; // UPDATED: Shorter gap
         
         if (slotIntervalRef.current) clearInterval(slotIntervalRef.current);
 
@@ -426,11 +474,14 @@ const App = () => {
                     setActiveMultiplier(count);
                 }
                 
-                const delay = Math.random() * 3000 + 2000; 
+                // UPDATED: Significantly reduced delay for bird appearance
+                const delay = Math.random() * 1000 + 500; 
                 mysteryBirdTimeoutRef.current = setTimeout(() => {
                     const x = Math.floor(Math.random() * 80) + 10; 
                     const y = Math.floor(Math.random() * 80) + 10;
                     setMysteryBird({ x, y });
+                    
+                    // UPDATED: Increased duration bird stays on screen
                     setTimeout(() => {
                         setMysteryBird(prev => {
                             if (prev) {
@@ -440,7 +491,7 @@ const App = () => {
                             }
                             return prev; 
                         });
-                    }, 1000);
+                    }, 3000); // Stays for 3 seconds now
                 }, delay);
 
                 luckTimeoutRef.current = setTimeout(() => {
@@ -449,7 +500,7 @@ const App = () => {
                     setButtonMode('dice'); 
                 }, 1500);
             }
-        }, 80); 
+        }, 50); // UPDATED: Faster tick rate (was 80)
     }
   }, [isRollingLuck, isRollingChance, buttonMode, closeAllMenus]);
 
@@ -527,54 +578,50 @@ const App = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                // UPDATED: Background is dark overlay, not teal
                 className="absolute inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-8 backdrop-blur-sm"
             >
                 {/* Catching Container - Polished */}
-                <div className="w-[90%] max-w-2xl bg-slate-800 border-4 border-white/20 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col gap-10 relative overflow-hidden">
+                {/* UPDATED: Changed from teal to blue to match camera button */}
+                <div className="w-[90%] max-w-2xl bg-blue-900/80 border-4 border-white/20 rounded-3xl p-8 shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex flex-col gap-10 relative overflow-hidden">
                     
-                    {/* Background Grid Pattern */}
-                     <div 
-                        className="absolute inset-0 opacity-20 pointer-events-none"
-                        style={{
-                            backgroundImage: `linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`,
-                            backgroundSize: '40px 40px'
-                        }}
-                    />
+                    {/* Dotted Background Pattern inside Modal */}
+                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,white_2px,transparent_2px)] [background-size:24px_24px] pointer-events-none" />
 
-                    {/* Viewfinder Corners */}
-                    <div className="absolute top-4 left-4 w-8 h-8 border-t-4 border-l-4 border-white/50 rounded-tl-lg" />
-                    <div className="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-white/50 rounded-tr-lg" />
-                    <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-white/50 rounded-bl-lg" />
-                    <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-white/50 rounded-br-lg" />
+                    {/* Viewfinder Corners - kept for "camera" feel but lighter, changed to blue tint */}
+                    <div className="absolute top-4 left-4 w-8 h-8 border-t-4 border-l-4 border-blue-200/50 rounded-tl-lg" />
+                    <div className="absolute top-4 right-4 w-8 h-8 border-t-4 border-r-4 border-blue-200/50 rounded-tr-lg" />
+                    <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-blue-200/50 rounded-bl-lg" />
+                    <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-blue-200/50 rounded-br-lg" />
 
                     <div className="text-center relative z-10">
-                        <h2 className="text-3xl font-black italic tracking-widest uppercase text-white drop-shadow-[0_2px_0px_rgba(0,0,0,1)] animate-pulse">
-                            <span className="text-red-500 mr-2">●</span> FOCUSING...
+                        <h2 className="text-3xl font-black italic tracking-widest uppercase text-white drop-shadow-[0_2px_0px_rgba(0,0,0,1)]">
+                            {/* Simplified States */}
+                            {focusPhase === 'success' ? (
+                                <span className="text-green-400">GOTCHA!</span>
+                            ) : (focusPhase === 'miss' ? (
+                                <span className="text-red-400">MISSED SHOT</span>
+                            ) : (
+                                "FOCUSING..."
+                            ))}
                         </h2>
                     </div>
 
                     {/* Number Line Area */}
                     <div className="relative w-full h-32 flex items-center justify-center z-10">
                         
-                        {/* Track */}
-                        <div className="absolute left-0 right-0 h-6 bg-slate-900/80 rounded-full overflow-hidden border-2 border-slate-600 shadow-inner">
-                             {/* Range Highlight - Orange */}
+                        {/* Track - Changed to Blue */}
+                        <div className="absolute left-0 right-0 h-4 bg-blue-950/60 rounded-full overflow-hidden border-2 border-blue-500 shadow-inner">
+                             {/* Range Highlight - UPDATED: Changed from Orange to Teal */}
                              {luckValue && (
                                 <div 
-                                    className="absolute h-full bg-orange-500 opacity-80"
+                                    className="absolute h-full bg-teal-400 opacity-60"
                                     style={{
-                                        left: `${luckValue - (chanceLevel * activeMultiplier)}%`,
-                                        width: `${(chanceLevel * activeMultiplier) * 2}%`
+                                        left: `${Math.max(0, luckValue - (chanceLevel * activeMultiplier))}%`,
+                                        width: `${Math.min(100, (chanceLevel * activeMultiplier) * 2)}%`
                                     }}
                                 />
                              )}
-                        </div>
-
-                        {/* Ticks (Visual Polish) */}
-                        <div className="absolute left-0 right-0 h-6 flex justify-between px-1 opacity-30 pointer-events-none">
-                             {[...Array(21)].map((_, i) => (
-                                 <div key={i} className={`w-0.5 h-full bg-white ${i % 5 === 0 ? 'opacity-100 h-full' : 'opacity-40 h-1/2 mt-1.5'}`} />
-                             ))}
                         </div>
 
                         {/* Lucky Number Marker */}
@@ -583,38 +630,65 @@ const App = () => {
                                 className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-1 z-20"
                                 style={{ left: `${luckValue}%` }} 
                             >
-                                <div className="w-1.5 h-10 bg-pink-500 absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 shadow-[0_0_10px_#ec4899]" />
+                                <div className="w-1 h-8 bg-pink-500 absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 shadow-[0_0_10px_#ec4899]" />
                                 {/* Number Display */}
-                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-pink-500 text-white text-xl font-black px-2 py-1 rounded-md border-2 border-white shadow-lg min-w-[2.5rem] text-center">
+                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-pink-500 text-white text-lg font-black px-2 py-0.5 rounded-md border-2 border-white shadow-lg min-w-[2rem] text-center">
                                     {luckValue}
-                                    <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-pink-500 rotate-45 border-b-2 border-r-2 border-white" />
+                                    <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-2 h-2 bg-pink-500 rotate-45 border-b-2 border-r-2 border-white" />
                                 </div>
                             </div>
                         )}
 
-                        {/* Animated Bird Silhouette */}
-                        <motion.div
-                            className="absolute top-1/2 -translate-y-1/2 z-30 text-6xl filter brightness-0 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]"
-                            initial={{ left: "0%" }}
-                            animate={{ 
-                                left: ["0%", "95%", "5%", "90%", "10%", "80%", "20%", `${catchTarget}%`] 
-                            }}
-                            transition={{ 
-                                duration: 5.5, 
-                                times: [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.85, 1],
-                                ease: "easeInOut"
-                            }}
-                        >
-                            <div className="-translate-x-1/2 relative">
-                                🐦
-                                {/* Target Reticle on Bird */}
-                                <div className="absolute inset-0 border-2 border-red-500/50 rounded-full animate-ping opacity-20" />
-                            </div>
-                        </motion.div>
+                        {/* Tease Bird Animation */}
+                        <AnimatePresence mode="popLayout">
+                            <motion.div
+                                key={teasePosition} // Rerenders on position change
+                                className="absolute top-1/2 -translate-y-1/2 z-30 text-5xl filter brightness-0 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]"
+                                initial={{ opacity: 0, scale: 0.5, left: `${teasePosition}%` }}
+                                animate={{ 
+                                    opacity: focusPhase === 'miss' ? 0 : 1, 
+                                    scale: focusPhase === 'miss' ? 2 : 1, 
+                                    left: `${teasePosition}%`,
+                                    // UPDATED: Always brightness(0) to keep silhouette black, success adds white glow
+                                    filter: focusPhase === 'success' 
+                                        ? "brightness(0) drop-shadow(0 0 10px white)" 
+                                        : "brightness(0) drop-shadow(0 4px 4px rgba(0,0,0,0.5))"
+                                }}
+                                exit={{ opacity: 0, scale: 0 }}
+                                transition={{ 
+                                    type: "spring",
+                                    stiffness: 300,
+                                    damping: 20
+                                }}
+                            >
+                                <div className="-translate-x-1/2 relative">
+                                    🐦
+                                    {/* Success Ring */}
+                                    {focusPhase === 'success' && (
+                                        <motion.div 
+                                            initial={{ scale: 0.8, opacity: 0 }}
+                                            animate={{ scale: 2, opacity: 0 }}
+                                            transition={{ duration: 0.8, repeat: Infinity }}
+                                            className="absolute inset-0 border-4 border-green-400 rounded-full"
+                                        />
+                                    )}
+                                    {/* Miss Cross */}
+                                    {focusPhase === 'miss' && (
+                                        <motion.div 
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: 1 }}
+                                            className="absolute -top-4 -right-4 text-4xl"
+                                        >
+                                            ❌
+                                        </motion.div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </AnimatePresence>
                     </div>
-
-                    <div className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest relative z-10 bg-slate-900/50 py-2 rounded-full mx-auto px-6 border border-white/10">
-                        Target Range: <span className="text-orange-400 text-lg mx-1">{luckValue ? `${Math.max(1, luckValue - (chanceLevel * activeMultiplier))} - ${Math.min(99, luckValue + (chanceLevel * activeMultiplier))}` : 'ALL'}</span>
+                    {/* UPDATED: Changed 'Chance Range' from Orange to Teal text */}
+                    <div className="text-center text-xs font-bold text-blue-200/70 uppercase tracking-widest relative z-10 bg-blue-900/50 py-2 rounded-full mx-auto px-6 border border-white/10">
+                        Chance Range: <span className="text-teal-300 text-lg mx-1">{luckValue ? `${Math.max(0, luckValue - (chanceLevel * activeMultiplier))} - ${Math.min(100, luckValue + (chanceLevel * activeMultiplier))}` : 'ALL'}</span>
                     </div>
                 </div>
             </motion.div>
@@ -735,10 +809,10 @@ const App = () => {
         {showFlash && (
             <motion.div 
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 0.4 }}
+                animate={{ opacity: 0.8 }} // Higher opacity
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.1 }}
-                className="absolute inset-0 z-[70] bg-white pointer-events-none mix-blend-hard-light"
+                className="absolute inset-0 z-[70] bg-white pointer-events-none" // Removed mix-blend
             />
         )}
       </AnimatePresence>
@@ -766,7 +840,8 @@ const App = () => {
                         ) : (
                             <>
                                 {/* Conditional Label for Flowers vs Trees/Items */}
-                                <span className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${pendingItem.type === 'flower' ? 'text-orange-500' : 'text-pink-500'}`}>
+                                {/* UPDATED: Changed text-orange-500 to text-teal-500 */}
+                                <span className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${pendingItem.type === 'flower' ? 'text-teal-500' : 'text-pink-500'}`}>
                                     {pendingItem.type === 'flower' ? 'CHANCE +2' : 'LUCK +3'}
                                 </span>
                                 <div className="flex items-baseline gap-1">
@@ -815,7 +890,8 @@ const App = () => {
                     initial={{ scale: 0, rotate: 12 }}
                     animate={{ scale: 1, rotate: 0 }}
                     exit={{ scale: 0, opacity: 0 }}
-                    className="relative w-64 h-32 bg-orange-400 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-3xl flex flex-col items-center justify-center pointer-events-auto"
+                    // UPDATED: Changed bg-orange-400 to bg-teal-400
+                    className="relative w-64 h-32 bg-teal-400 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-3xl flex flex-col items-center justify-center pointer-events-auto"
                 >
                     {/* Header Label */}
                     <div className="absolute -top-5 bg-white px-3 py-1 border-2 border-black rounded-full font-black text-xs tracking-wider shadow-sm transform rotate-2 text-black">
@@ -881,18 +957,38 @@ const App = () => {
         <div className="absolute inset-0 z-0 overflow-hidden rounded-none border-b-4 border-black shadow-lg bg-amber-400">
              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:8px_8px] z-0"></div>
              
-             {/* Day Transition Fill Animation */}
+             {/* UPDATED: Day Transition Fill Animation Logic for Fade Out */}
+             {/* Success Fade Overlay - Only visible when daySuccess is true */}
+             <AnimatePresence>
+                 {daySuccess && (
+                    <motion.div
+                        key="day-success-fade"
+                        className="absolute inset-0 bg-purple-900 z-20 pointer-events-none"
+                        initial={{ opacity: 1 }}
+                        animate={{ opacity: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.5 }} // Fade out duration
+                        onAnimationComplete={() => setDaySuccess(false)}
+                    />
+                 )}
+             </AnimatePresence>
+             
+             {/* Interaction Bar - Slides in, then snaps away upon success (hidden by overlay) */}
              <motion.div
                 className="absolute inset-0 bg-purple-900 z-10"
                 initial={{ scaleX: 0 }}
+                // If success, we snap scaleX to 0, but since overlay is on top and opacity 1, user sees full bar.
+                // Then overlay fades out.
+                // If not success, standard slide animation.
                 animate={{ scaleX: isHoldingDay ? 1 : 0 }}
                 style={{ originX: 0 }}
-                transition={{ duration: isHoldingDay ? 2 : 0.2, ease: "linear" }}
+                transition={{ duration: isHoldingDay ? 2 : (daySuccess ? 0 : 0.2), ease: "linear" }}
                 onAnimationComplete={() => {
                     // Check if the hold was successful (scaleX reached 1)
                     if (isHoldingDay) {
                         setDay(d => d + 1);
-                        setIsHoldingDay(false); // Reset to revert color
+                        setDaySuccess(true); // Trigger separate fade overlay
+                        setIsHoldingDay(false); // Reset hold state
                     }
                 }}
              />
@@ -908,7 +1004,8 @@ const App = () => {
                         }}
                         className="relative h-full z-20 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex-1 rounded-lg overflow-hidden group"
                         style={{
-                            background: 'linear-gradient(135deg, #f472b6 50%, #fb923c 50%)' 
+                            // UPDATED: Changed orange (#fb923c) to teal (#2dd4bf) in gradient
+                            background: 'linear-gradient(135deg, #f472b6 50%, #2dd4bf 50%)' 
                         }}
                     >
                         {/* Top Left - Pink - Lucky Number */}
@@ -1176,8 +1273,9 @@ const App = () => {
              <motion.button 
                 onClick={handleLuckClick}
                 whileTap={{ scale: 0.95, y: 4, boxShadow: '0px 0px 0px 0px rgba(0,0,0,1)' }}
+                // UPDATED: Changed bg-orange-400 to bg-teal-400
                 className={`h-16 w-16 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group flex items-center justify-center transition-colors duration-500
-                    ${buttonMode === 'feather' ? 'bg-orange-400' : 'bg-pink-400'}
+                    ${buttonMode === 'feather' ? 'bg-teal-400' : 'bg-pink-400'}
                 `}
             >
                  <motion.span 

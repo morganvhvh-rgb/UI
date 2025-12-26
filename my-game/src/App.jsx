@@ -21,7 +21,6 @@ const App = () => {
   const [teasePosition, setTeasePosition] = useState(50);
 
   // Luck & Chance States
-  const [buttonMode, setButtonMode] = useState('dice'); // 'dice' or 'feather'
   const [luckValue, setLuckValue] = useState(null);
   const [chanceLevel, setChanceLevel] = useState(0);
   const [featherCount, setFeatherCount] = useState(null); 
@@ -101,65 +100,66 @@ const App = () => {
     { id: 'trees', icon: '🌳', subItems: ['🌵', '🌳', '🌲', '🌴'], type: 'slider' }, 
   ], []);
 
+  // UPDATED: More intense colors for shop sections and items
   const shopItems = useMemo(() => [
     {
       title: 'BIRDING SUPPLIES',
-      bgColor: 'bg-[#a18068]', 
-      toggleTheme: 'bg-amber-900', 
+      bgColor: 'bg-amber-800', // Was bg-[#a18068]
+      toggleTheme: 'bg-amber-950', 
       sections: [
         {
           title: 'BIRD HOUSES',
           items: [
-            { icon: '🏚', price: 10, stat: 5, type: 'house', label: 'Classic', bgColor: 'bg-red-100' },
-            { icon: '🏠', price: 20, stat: 15, type: 'house', label: 'Manor', bgColor: 'bg-red-100' },
-            { icon: '🏘', price: 30, stat: 25, type: 'house', label: 'Cottage', bgColor: 'bg-red-100' },
+            { icon: '🏚', price: 10, stat: 5, type: 'house', label: 'Classic', bgColor: 'bg-red-200' }, // Was 100
+            { icon: '🏠', price: 20, stat: 15, type: 'house', label: 'Manor', bgColor: 'bg-red-200' },
+            { icon: '🏘', price: 30, stat: 25, type: 'house', label: 'Cottage', bgColor: 'bg-red-200' },
           ]
         },
         {
           title: 'BIRD BATHS',
           items: [
-            { icon: '⚱', price: 10, stat: 5, type: 'bath', label: 'Fountain', bgColor: 'bg-teal-100' },
-            { icon: '🛁', price: 20, stat: 15, type: 'bath', label: 'Tub', bgColor: 'bg-teal-100' },
-            { icon: '⛲', price: 30, stat: 25, type: 'bath', label: 'Bowl', bgColor: 'bg-teal-100' },
+            { icon: '⚱', price: 10, stat: 5, type: 'bath', label: 'Fountain', bgColor: 'bg-teal-200' }, // Was 100
+            { icon: '🛁', price: 20, stat: 15, type: 'bath', label: 'Tub', bgColor: 'bg-teal-200' },
+            { icon: '⛲', price: 30, stat: 25, type: 'bath', label: 'Bowl', bgColor: 'bg-teal-200' },
           ]
         },
         {
           title: 'BIRD FEEDERS',
           items: [
-            { icon: '🪵', price: 10, stat: 5, type: 'feeder', label: 'Bagel', bgColor: 'bg-yellow-100' },
-            { icon: '🫙', price: 20, stat: 15, type: 'feeder', label: 'Seed', bgColor: 'bg-yellow-100' },
-            { icon: '⚖', price: 30, stat: 25, type: 'feeder', label: 'Cob', bgColor: 'bg-yellow-100' },
+            { icon: '🪵', price: 10, stat: 5, type: 'feeder', label: 'Bagel', bgColor: 'bg-yellow-200' }, // Was 100
+            { icon: '🫙', price: 20, stat: 15, type: 'feeder', label: 'Seed', bgColor: 'bg-yellow-200' },
+            { icon: '⚖', price: 30, stat: 25, type: 'feeder', label: 'Cob', bgColor: 'bg-yellow-200' },
           ]
         }
       ]
     },
     {
       title: 'VARIETY STORE',
-      bgColor: 'bg-[#ccff00]', 
-      toggleTheme: 'bg-lime-600', 
+      bgColor: 'bg-lime-500', // Was bg-[#ccff00]
+      toggleTheme: 'bg-lime-700', 
       sections: [
         {
           title: '', 
           items: [
-             { icon: '🎁', price: 10, type: 'misc' }, 
-             { icon: '🔭', price: 20, type: 'misc' }, 
-             { icon: '🪈', price: 30, type: 'misc' },
+             { icon: '🎁', price: 10, type: 'misc', label: 'Gift' }, 
+             { icon: '🔭', price: 20, type: 'misc', label: 'Telescope' }, 
+             { icon: '🪈', price: 30, type: 'misc', label: 'Flute' },
           ]
         },
         {
           title: '',
           items: [
-            { icon: '📸', price: 10, type: 'misc' }, 
-            { icon: '🍣', price: 20, type: 'misc' }, 
-            { icon: '🐈', price: 30, type: 'misc' },
+            { icon: '📸', price: 10, type: 'misc', label: 'Camera' }, 
+            { icon: '🍣', price: 20, type: 'misc', label: 'Sushi' }, 
+            { icon: '🐈', price: 30, type: 'misc', label: 'Cat' },
           ]
         },
         {
           title: '',
           items: [
-            { icon: '👟', price: 10, type: 'misc' }, 
-            { icon: '🕯️', price: 20, type: 'misc' }, 
-            { icon: '🎃', price: 30, type: 'misc' },
+            { icon: '👟', price: 10, type: 'misc', label: 'Sneaker' }, 
+            { icon: '🕯️', price: 20, type: 'misc', label: 'Candle' }, 
+            { icon: '🎃', price: 30, type: 'misc', label: 'Pumpkin' },
           ]
         }
       ]
@@ -254,9 +254,10 @@ const App = () => {
   // Updated Top Bar Data to include Day state
   const topBarData = useMemo(() => [
     { type: 'profile', icon: '👤' },
-    { type: 'stat', label: 'MONEY', value: `$${money}`, color: 'text-green-600' },
+    // UPDATED: Darker stat text for contrast
+    { type: 'stat', label: 'MONEY', value: `$${money}`, color: 'text-green-700' },
     { type: 'custom-luck', value: luckValue, subValue: chanceLevel * activeMultiplier },
-    { type: 'stat', label: 'DAY', value: day, color: 'text-blue-600' },
+    { type: 'stat', label: 'DAY', value: day, color: 'text-blue-700' },
   ], [luckValue, chanceLevel, activeMultiplier, money, day]);
 
   const handleMenuClick = useCallback((item) => {
@@ -307,7 +308,7 @@ const App = () => {
                   });
                   // Immediately close shop and show message for variety items
                   setIsShopOpen(false);
-                  setSpecialMessage("This is a variety store item.");
+                  setSpecialMessage(`You purchased a ${item.label}!`);
               }
               setSelectedShopItem(null);
           }
@@ -373,139 +374,164 @@ const App = () => {
     }
   }, [closeAllMenus, isCameraCoolingDown, money, mysteryBird]);
 
-  const handleLuckClick = useCallback(() => {
+  const handleDiceClick = useCallback(() => {
     closeAllMenus();
     if (isRollingLuck || isRollingChance) return;
     
-    if (buttonMode === 'dice') {
-        if (money < 1) return; // Prevent if no money
-        setMoney(prev => prev - 1); // Cost $1
+    if (money < 2) return; // Prevent if no money
+    setMoney(prev => prev - 2); // Cost $2
 
-        setLuckValue(null);
-        setFeatherCount(null);
-        setMultiplierDisplay(null);
-        setActiveMultiplier(1);
-        if (mysteryBirdTimeoutRef.current) clearTimeout(mysteryBirdTimeoutRef.current);
-        setMysteryBird(null);
-        setIsRollingLuck(true);
-        setIsFinalResult(false);
-        let speed = 30; // UPDATED: Faster start
-        let counter = 0;
-        const maxSteps = 12; 
+    setLuckValue(null);
+    setFeatherCount(null);
+    setMultiplierDisplay(null);
+    setActiveMultiplier(1);
+    if (mysteryBirdTimeoutRef.current) clearTimeout(mysteryBirdTimeoutRef.current);
+    setMysteryBird(null);
+    setIsRollingLuck(true);
+    setIsFinalResult(false);
+    let speed = 30; // UPDATED: Faster start
+    let counter = 0;
+    const maxSteps = 12; 
+    
+    const cycle = () => {
+      const nextNum = Math.floor(Math.random() * 99) + 1;
+      setRollingDisplayValue(nextNum);
+      counter++;
+      if (counter < maxSteps) {
+        speed += (counter * 4); // UPDATED: Slower deceleration (stays fast longer)
+        luckCycleRef.current = setTimeout(cycle, speed);
+      } else {
+        setLuckValue(nextNum); 
+        setIsFinalResult(true); 
         
-        const cycle = () => {
-          const nextNum = Math.floor(Math.random() * 99) + 1;
-          setRollingDisplayValue(nextNum);
-          counter++;
-          if (counter < maxSteps) {
-            speed += (counter * 4); // UPDATED: Slower deceleration (stays fast longer)
-            luckCycleRef.current = setTimeout(cycle, speed);
-          } else {
-            setLuckValue(nextNum); 
-            setIsFinalResult(true); 
-            setButtonMode('feather'); 
-            luckTimeoutRef.current = setTimeout(() => {
-                setIsRollingLuck(false);
-                setIsFinalResult(false);
-            }, 1000);
-          }
-        };
-        cycle();
-    } else if (buttonMode === 'feather') {
-        setIsRollingChance(true);
-        setIsFinalResult(false);
-        setMultiplierDisplay(null);
-        const options = ['❌', '🪶'];
-        setChanceSlots([null, null, null]);
-        const finalSlots = [
-            options[Math.floor(Math.random() * options.length)],
-            options[Math.floor(Math.random() * options.length)],
-            options[Math.floor(Math.random() * options.length)]
-        ];
-        const startTime = Date.now();
-        const spinDuration = 600; // UPDATED: Faster spin duration
-        const gapDuration = 100; // UPDATED: Shorter gap
-        
-        if (slotIntervalRef.current) clearInterval(slotIntervalRef.current);
-
-        slotIntervalRef.current = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            setChanceSlots(prev => {
-                const newSlots = [...prev];
-                if (elapsed < spinDuration) {
-                     newSlots[0] = options[Math.floor(Math.random() * options.length)];
-                } else {
-                     newSlots[0] = finalSlots[0];
-                }
-                const start2 = spinDuration + gapDuration;
-                if (elapsed < start2) {
-                    newSlots[1] = null; 
-                } else if (elapsed < start2 + spinDuration) {
-                    newSlots[1] = options[Math.floor(Math.random() * options.length)];
-                } else {
-                    newSlots[1] = finalSlots[1];
-                }
-                const start3 = start2 + spinDuration + gapDuration;
-                if (elapsed < start3) {
-                    newSlots[2] = null; 
-                } else if (elapsed < start3 + spinDuration) {
-                    newSlots[2] = options[Math.floor(Math.random() * options.length)];
-                } else {
-                    newSlots[2] = finalSlots[2];
-                }
-                return newSlots;
-            });
-
-            let currentM = 0;
-            if (elapsed >= spinDuration && finalSlots[0] === '🪶') currentM++;
-            const stop2 = spinDuration + gapDuration + spinDuration;
-            if (elapsed >= stop2 && finalSlots[1] === '🪶') currentM++;
-            const stop3 = stop2 + gapDuration + spinDuration;
-            if (elapsed >= stop3 && finalSlots[2] === '🪶') currentM++;
-
-            if (currentM > 0) {
-                setMultiplierDisplay(`${currentM}x`);
-            }
-
-            const totalDuration = (spinDuration * 3) + (gapDuration * 2);
-            if (elapsed > totalDuration + 100) {
-                clearInterval(slotIntervalRef.current);
-                setIsFinalResult(true);
-                const count = finalSlots.filter(s => s === '🪶').length;
-                setFeatherCount(count);
-                if (count > 0) {
-                    setActiveMultiplier(count);
-                }
+        // Check if lucky number matches any active item stat
+        const hasMatch = Object.values(activeItems).some(item => item && item.stat === nextNum);
+        if (hasMatch) {
+            const delay = Math.random() * 1000 + 500; 
+            mysteryBirdTimeoutRef.current = setTimeout(() => {
+                const x = Math.floor(Math.random() * 80) + 10; 
+                const y = Math.floor(Math.random() * 80) + 10;
+                setMysteryBird({ x, y });
                 
-                // UPDATED: Significantly reduced delay for bird appearance
-                const delay = Math.random() * 1000 + 500; 
-                mysteryBirdTimeoutRef.current = setTimeout(() => {
-                    const x = Math.floor(Math.random() * 80) + 10; 
-                    const y = Math.floor(Math.random() * 80) + 10;
-                    setMysteryBird({ x, y });
-                    
-                    // UPDATED: Increased duration bird stays on screen
-                    setTimeout(() => {
-                        setMysteryBird(prev => {
-                            if (prev) {
-                                setActiveMultiplier(1); 
-                                setMultiplierDisplay(null);
-                                return null;
-                            }
-                            return prev; 
-                        });
-                    }, 3000); // Stays for 3 seconds now
-                }, delay);
+                setTimeout(() => {
+                    setMysteryBird(prev => prev ? null : prev);
+                }, 3000);
+            }, delay);
+        }
 
-                luckTimeoutRef.current = setTimeout(() => {
-                    setIsRollingChance(false);
-                    setIsFinalResult(false);
-                    setButtonMode('dice'); 
-                }, 1500);
-            }
-        }, 50); // UPDATED: Faster tick rate (was 80)
+        luckTimeoutRef.current = setTimeout(() => {
+            setIsRollingLuck(false);
+            setIsFinalResult(false);
+        }, 1000);
+      }
+    };
+    cycle();
+  }, [isRollingLuck, isRollingChance, closeAllMenus, money, activeItems]);
+
+  const handleChanceClick = useCallback(() => {
+    closeAllMenus();
+    if (isRollingLuck || isRollingChance) return;
+    
+    if (luckValue === null) {
+        setSpecialMessage("Get a lucky number first!");
+        return;
     }
-  }, [isRollingLuck, isRollingChance, buttonMode, closeAllMenus]);
+
+    if (money < 2) return;
+    setMoney(prev => prev - 2);
+
+    setIsRollingChance(true);
+    setIsFinalResult(false);
+    setMultiplierDisplay(null);
+    const options = ['❌', '🪶'];
+    setChanceSlots([null, null, null]);
+    const finalSlots = [
+        options[Math.floor(Math.random() * options.length)],
+        options[Math.floor(Math.random() * options.length)],
+        options[Math.floor(Math.random() * options.length)]
+    ];
+    const startTime = Date.now();
+    const spinDuration = 600; // UPDATED: Faster spin duration
+    const gapDuration = 100; // UPDATED: Shorter gap
+    
+    if (slotIntervalRef.current) clearInterval(slotIntervalRef.current);
+
+    slotIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        setChanceSlots(prev => {
+            const newSlots = [...prev];
+            if (elapsed < spinDuration) {
+                 newSlots[0] = options[Math.floor(Math.random() * options.length)];
+            } else {
+                 newSlots[0] = finalSlots[0];
+            }
+            const start2 = spinDuration + gapDuration;
+            if (elapsed < start2) {
+                newSlots[1] = null; 
+            } else if (elapsed < start2 + spinDuration) {
+                newSlots[1] = options[Math.floor(Math.random() * options.length)];
+            } else {
+                newSlots[1] = finalSlots[1];
+            }
+            const start3 = start2 + spinDuration + gapDuration;
+            if (elapsed < start3) {
+                newSlots[2] = null; 
+            } else if (elapsed < start3 + spinDuration) {
+                newSlots[2] = options[Math.floor(Math.random() * options.length)];
+            } else {
+                newSlots[2] = finalSlots[2];
+            }
+            return newSlots;
+        });
+
+        let currentM = 0;
+        if (elapsed >= spinDuration && finalSlots[0] === '🪶') currentM++;
+        const stop2 = spinDuration + gapDuration + spinDuration;
+        if (elapsed >= stop2 && finalSlots[1] === '🪶') currentM++;
+        const stop3 = stop2 + gapDuration + spinDuration;
+        if (elapsed >= stop3 && finalSlots[2] === '🪶') currentM++;
+
+        if (currentM > 0) {
+            setMultiplierDisplay(`${currentM}x`);
+        }
+
+        const totalDuration = (spinDuration * 3) + (gapDuration * 2);
+        if (elapsed > totalDuration + 100) {
+            clearInterval(slotIntervalRef.current);
+            setIsFinalResult(true);
+            const count = finalSlots.filter(s => s === '🪶').length;
+            setFeatherCount(count);
+            if (count > 0) {
+                setActiveMultiplier(count);
+            }
+            
+            // UPDATED: Significantly reduced delay for bird appearance
+            const delay = Math.random() * 1000 + 500; 
+            mysteryBirdTimeoutRef.current = setTimeout(() => {
+                const x = Math.floor(Math.random() * 80) + 10; 
+                const y = Math.floor(Math.random() * 80) + 10;
+                setMysteryBird({ x, y });
+                
+                // UPDATED: Increased duration bird stays on screen
+                setTimeout(() => {
+                    setMysteryBird(prev => {
+                        if (prev) {
+                            setActiveMultiplier(1); 
+                            setMultiplierDisplay(null);
+                            return null;
+                        }
+                        return prev; 
+                    });
+                }, 3000); // Stays for 3 seconds now
+            }, delay);
+
+            luckTimeoutRef.current = setTimeout(() => {
+                setIsRollingChance(false);
+                setIsFinalResult(false);
+            }, 1500);
+        }
+    }, 50); // UPDATED: Faster tick rate (was 80)
+  }, [isRollingLuck, isRollingChance, closeAllMenus, luckValue, money]);
 
   const toggleShopPage = useCallback(() => {
     setCurrentShopPage(prev => (prev + 1) % shopItems.length);
@@ -538,7 +564,8 @@ const App = () => {
 
   return (
     // Changed h-screen to h-[100dvh] for mobile browser support
-    <div className="relative w-full h-[100dvh] bg-green-600 overflow-hidden select-none touch-none flex flex-col font-sans text-slate-900">
+    // UPDATED: bg-green-700 for root
+    <div className="relative w-full h-[100dvh] bg-green-700 overflow-hidden select-none touch-none flex flex-col font-sans text-slate-900">
       
       {/* GLOBAL BLOCKING OVERLAY FOR TUTORIAL OR MESSAGE */}
       {/* High Z-Index to block everything except the text box itself */}
@@ -587,7 +614,7 @@ const App = () => {
             >
                 {/* Catching Container - Polished */}
                 {/* UPDATED: Slimmer border, shadow-2xl, lighter bg */}
-                <div className="w-[90%] max-w-4xl bg-blue-900/90 backdrop-blur-xl border border-white/30 rounded-2xl p-8 shadow-2xl flex flex-col gap-10 relative overflow-hidden items-center">
+                <div className="w-[90%] max-w-4xl bg-blue-950/95 backdrop-blur-xl border border-white/30 rounded-2xl p-8 shadow-2xl flex flex-col gap-10 relative overflow-hidden items-center">
                     
                     {/* Dotted Background Pattern inside Modal */}
                     <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,white_2px,transparent_2px)] [background-size:24px_24px] pointer-events-none" />
@@ -603,9 +630,9 @@ const App = () => {
                         <h2 className="text-2xl font-bold italic tracking-widest uppercase text-white drop-shadow-md whitespace-nowrap">
                             {/* Simplified States */}
                             {focusPhase === 'success' ? (
-                                <span className="text-green-400">GOTCHA!</span>
+                                <span className="text-green-500">GOTCHA!</span>
                             ) : (focusPhase === 'miss' ? (
-                                <span className="text-red-400">MISSED SHOT</span>
+                                <span className="text-red-500">MISSED SHOT</span>
                             ) : (
                                 "FOCUSING..."
                             ))}
@@ -721,7 +748,8 @@ const App = () => {
                     <motion.div 
                         initial={{ scale: 0.8, rotate: -5 }}
                         animate={{ scale: 1, rotate: 0 }}
-                        className="w-full bg-blue-400/90 border border-white/20 rounded-3xl p-6 flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden backdrop-blur-sm"
+                        // UPDATED: More intense blue
+                        className="w-full bg-blue-500/90 border border-white/20 rounded-3xl p-6 flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden backdrop-blur-sm"
                     >
                         {/* Background Pattern on Card */}
                         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,white_2px,transparent_2px)] [background-size:16px_16px] pointer-events-none" />
@@ -871,7 +899,8 @@ const App = () => {
                     initial={{ scale: 0, rotate: -20 }}
                     animate={{ scale: 1, rotate: 0 }}
                     exit={{ scale: 0, opacity: 0 }}
-                    className="relative w-40 h-40 bg-pink-400/90 backdrop-blur-sm border border-pink-500/50 shadow-2xl rounded-2xl flex flex-col items-center justify-center pointer-events-auto"
+                    // UPDATED: Pink-500 instead of Pink-400
+                    className="relative w-40 h-40 bg-pink-500/90 backdrop-blur-sm border border-pink-500/50 shadow-2xl rounded-2xl flex flex-col items-center justify-center pointer-events-auto"
                 >
                     <div className="absolute -top-5 bg-white px-3 py-1 border border-slate-200 rounded-full font-bold text-xs tracking-wider shadow-md transform -rotate-3 text-black">
                         LUCKY NUMBER
@@ -897,8 +926,8 @@ const App = () => {
                     initial={{ scale: 0, rotate: 12 }}
                     animate={{ scale: 1, rotate: 0 }}
                     exit={{ scale: 0, opacity: 0 }}
-                    // UPDATED: Changed bg-orange-400 to bg-teal-400
-                    className="relative w-64 h-32 bg-teal-400/90 backdrop-blur-sm border border-teal-500/50 shadow-2xl rounded-2xl flex flex-col items-center justify-center pointer-events-auto"
+                    // UPDATED: Changed bg-orange-400 to bg-teal-500
+                    className="relative w-64 h-32 bg-teal-500/90 backdrop-blur-sm border border-teal-500/50 shadow-2xl rounded-2xl flex flex-col items-center justify-center pointer-events-auto"
                 >
                     {/* Header Label */}
                     <div className="absolute -top-5 bg-white px-3 py-1 border border-slate-200 rounded-full font-bold text-xs tracking-wider shadow-md transform rotate-2 text-black">
@@ -988,7 +1017,8 @@ const App = () => {
 
       {/* Top Bar */}
       <header className="w-full h-20 shrink-0 z-30 px-4 py-3 flex items-center gap-3 relative">
-        <div className="absolute inset-0 z-0 overflow-hidden rounded-none border-b border-black/10 shadow-lg bg-amber-400/90 backdrop-blur-md">
+        {/* UPDATED: More intense amber background */}
+        <div className="absolute inset-0 z-0 overflow-hidden rounded-none border-b border-black/10 shadow-lg bg-amber-500/90 backdrop-blur-md">
              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:8px_8px] z-0"></div>
              
              {/* UPDATED: Day Transition Fill Animation Logic for Fade Out */}
@@ -1038,8 +1068,8 @@ const App = () => {
                         }}
                         className="relative h-full z-20 border border-black/10 shadow-sm flex-1 rounded-lg overflow-hidden group hover:shadow-md transition-shadow"
                         style={{
-                            // UPDATED: Changed orange (#fb923c) to teal (#2dd4bf) in gradient
-                            background: 'linear-gradient(135deg, #f472b6 50%, #2dd4bf 50%)' 
+                            // UPDATED: More intense gradient (pink-500, teal-500)
+                            background: 'linear-gradient(135deg, #ec4899 50%, #14b8a6 50%)' 
                         }}
                     >
                         {/* Top Left - Pink - Lucky Number */}
@@ -1088,7 +1118,7 @@ const App = () => {
                     <span className="text-2xl filter drop-shadow-sm opacity-80">{item.icon}</span>
                  ) : (
                     <>
-                        <span className="text-[10px] font-bold opacity-60 leading-tight tracking-widest uppercase text-slate-500">{item.label}</span>
+                        <span className="text-[10px] font-bold opacity-60 leading-tight tracking-widest uppercase text-slate-700">{item.label}</span>
                         <span className={`text-base font-bold leading-none ${item.color || 'text-slate-900'} min-h-[1em]`}>
                             <AnimatePresence mode='wait'>
                                 <motion.span 
@@ -1114,26 +1144,26 @@ const App = () => {
         onClick={closeAllMenus}
       >
         
-        {/* NEW BACKGROUND - Simpler, Softer with Blur */}
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-green-500">
-             {/* Lighting Gradient (Vignette Light Center) */}
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,#86efac,transparent_70%)] opacity-60" />
+        {/* REVISED BACKGROUND - Crisp but Subtle Checkerboard */}
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#22c55e]">
+             {/* Base Gradient to give some depth (Top light, bottom slightly darker) */}
+             <div className="absolute inset-0 bg-gradient-to-b from-green-500 to-green-700 opacity-50" />
              
-             {/* Soft Checkerboard Pattern with Blur */}
+             {/* Crisp Checkerboard Pattern - Low Opacity */}
              <div 
-                className="absolute inset-0 opacity-10 blur-[1px]" 
+                className="absolute inset-0 opacity-[0.05]" 
                 style={{
                     backgroundImage: `
-                        linear-gradient(45deg, #052e16 25%, transparent 25%, transparent 75%, #052e16 75%),
-                        linear-gradient(45deg, #052e16 25%, transparent 25%, transparent 75%, #052e16 75%)
+                        linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%),
+                        linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%)
                     `,
                     backgroundPosition: '0 0, 30px 30px',
                     backgroundSize: '60px 60px'
                 }}
              />
              
-             {/* Dark Vignette Edges */}
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)]"></div>
+             {/* Subtle Vignette to focus center */}
+             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_40%,rgba(0,0,0,0.15)_100%)]"></div>
         </div>
 
         {/* Decorative Variety Items (Replaces Static Telescope/Gift) */}
@@ -1145,7 +1175,8 @@ const App = () => {
                         initial={{ opacity: 0, scale: 0, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0 }}
-                        className={`text-5xl filter drop-shadow-lg opacity-90 ${index % 2 === 0 ? 'transform -rotate-12 pb-1' : 'transform rotate-6'}`}
+                        // UPDATED: Shadow style for variety items
+                        className={`text-5xl filter drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] opacity-90 ${index % 2 === 0 ? 'transform -rotate-12 pb-1' : 'transform rotate-6'}`}
                     >
                         {item}
                     </motion.div>
@@ -1194,8 +1225,8 @@ const App = () => {
         </div>
 
         {/* Left Side Meters */}
-        {/* UPDATED: Changed background color from bg-red-900/80 to bg-red-600/90 */}
-        <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 bg-red-600/90 backdrop-blur-md rounded-r-2xl pl-3 pr-2 py-4 flex flex-col gap-4 z-20 border-y border-r border-white/20 shadow-xl">
+        {/* UPDATED: Changed background color from bg-red-900/80 to bg-red-700/90 */}
+        <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 bg-red-700/90 backdrop-blur-md rounded-r-2xl pl-3 pr-2 py-4 flex flex-col gap-4 z-20 border-y border-r border-white/20 shadow-2xl">
           {[
             { icon: '📈', color: 'bg-blue-500', value: Math.min(100, day * 10) },
             { icon: '🚘', color: 'bg-slate-400', value: 50 } // Changed icon to 🚘
@@ -1226,8 +1257,8 @@ const App = () => {
                             item={activeItems.feeder} 
                             type="FEEDER" 
                             zIndex="z-30"
-                            bgColor="bg-yellow-100"
-                            labelColor="bg-yellow-500"
+                            bgColor="bg-yellow-200"
+                            labelColor="bg-yellow-600"
                         />
                     )}
                     {/* Bath (Center, Mid z-index) */}
@@ -1237,8 +1268,8 @@ const App = () => {
                             item={activeItems.bath} 
                             type="BATH" 
                             zIndex="z-20"
-                            bgColor="bg-teal-100"
-                            labelColor="bg-teal-500"
+                            bgColor="bg-teal-200"
+                            labelColor="bg-teal-600"
                         />
                     )}
                     {/* House (Right, Low z-index) */}
@@ -1248,8 +1279,8 @@ const App = () => {
                             item={activeItems.house} 
                             type="HOUSE" 
                             zIndex="z-10"
-                            bgColor="bg-red-100"
-                            labelColor="bg-red-500"
+                            bgColor="bg-red-200"
+                            labelColor="bg-red-600"
                         />
                     )}
                 </AnimatePresence>
@@ -1283,7 +1314,7 @@ const App = () => {
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent"></div>
         </div>
         
-        <div className="relative z-10 w-full h-full p-6 flex items-end justify-center gap-4 pb-8">
+        <div className="relative z-10 w-full h-full p-6 flex items-end justify-center gap-2 pb-8">
              {/* Left Action - Shop */}
             <motion.button 
                 onClick={(e) => {
@@ -1292,7 +1323,8 @@ const App = () => {
                     setIsShopOpen(true);
                 }}
                 whileTap={{ scale: 0.95, y: 4 }}
-                className="h-16 w-16 rounded-2xl bg-amber-400/90 backdrop-blur-sm border border-amber-300 shadow-lg relative overflow-hidden group flex items-center justify-center hover:bg-amber-300 transition-colors"
+                // UPDATED: More intense Amber
+                className="h-16 w-16 rounded-2xl bg-amber-500/90 backdrop-blur-sm border border-amber-400 shadow-lg relative overflow-hidden group flex items-center justify-center hover:bg-amber-400 transition-colors"
             >
                  <span className="text-3xl filter drop-shadow-md relative z-10 group-active:scale-90 transition-transform">🛍️</span>
             </motion.button>
@@ -1302,33 +1334,40 @@ const App = () => {
                 onClick={handleCameraClick}
                 disabled={isCameraCoolingDown || money < 1}
                 whileTap={(!isCameraCoolingDown && money >= 1) ? { scale: 0.98, y: 4 } : {}}
-                className={`h-20 w-24 mb-1 rounded-3xl border border-white/30 shadow-xl relative overflow-hidden group flex items-center justify-center transition-all duration-200
-                    ${isCameraCoolingDown ? 'bg-red-500/90 cursor-not-allowed grayscale' : (money < 1 ? 'bg-slate-400/90 cursor-not-allowed' : 'bg-blue-600/90 hover:bg-blue-500/90 backdrop-blur-sm')}
+                // UPDATED: Intense Blue
+                className={`h-16 w-16 rounded-2xl border border-white/30 shadow-xl relative overflow-hidden group flex items-center justify-center transition-all duration-200
+                    ${isCameraCoolingDown ? 'bg-red-500/90 cursor-not-allowed grayscale' : (money < 1 ? 'bg-slate-400/90 cursor-not-allowed' : 'bg-blue-700/90 hover:bg-blue-600/90 backdrop-blur-sm')}
                 `}
             >
-                 <span className="text-4xl filter drop-shadow-lg relative z-10 -mt-2 group-active:rotate-12 transition-transform duration-300">📷</span>
+                 <span className="text-3xl filter drop-shadow-lg relative z-10 group-active:rotate-12 transition-transform duration-300">📷</span>
                  {/* Cooldown Overlay (optional visual cue, but the button is red now) */}
                  {isCameraCoolingDown && <div className="absolute inset-0 bg-black/10" />}
             </motion.button>
 
-             {/* Right Action - Luck */}
+             {/* Dice Action */}
              <motion.button 
-                onClick={handleLuckClick}
+                onClick={handleDiceClick}
                 whileTap={{ scale: 0.95, y: 4 }}
-                // UPDATED: Changed bg-orange-400 to bg-teal-400
+                // UPDATED: Intense Pink
                 className={`h-16 w-16 rounded-2xl border border-white/30 shadow-lg relative overflow-hidden group flex items-center justify-center transition-colors duration-500
-                    ${buttonMode === 'feather' ? 'bg-teal-400/90' : (money < 1 ? 'bg-slate-400/90 cursor-not-allowed' : 'bg-pink-400/90')}
+                    ${money < 2 ? 'bg-slate-400/90 cursor-not-allowed' : 'bg-pink-500/90'}
                     backdrop-blur-sm hover:brightness-110
                 `}
             >
-                 <motion.span 
-                    key={buttonMode}
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="text-3xl filter drop-shadow-md relative z-10 group-active:scale-90"
-                 >
-                    {buttonMode === 'feather' ? '🪶' : '🎲'}
-                 </motion.span>
+                 <span className="text-3xl filter drop-shadow-md relative z-10 group-active:scale-90">🎲</span>
+            </motion.button>
+
+             {/* Chance Action */}
+             <motion.button 
+                onClick={handleChanceClick}
+                whileTap={{ scale: 0.95, y: 4 }}
+                // UPDATED: Intense Teal
+                className={`h-16 w-16 rounded-2xl border border-white/30 shadow-lg relative overflow-hidden group flex items-center justify-center transition-colors duration-500
+                    ${money < 2 ? 'bg-slate-400/90 cursor-not-allowed' : 'bg-teal-500/90'}
+                    backdrop-blur-sm hover:brightness-110
+                `}
+            >
+                 <span className="text-3xl filter drop-shadow-md relative z-10 group-active:scale-90">🪶</span>
             </motion.button>
         </div>
       </div>
@@ -1345,28 +1384,29 @@ const App = () => {
                 <motion.div
                     {...modalVariants.profile}
                     transition={transitionSpring}
-                    className="absolute top-0 left-0 right-0 h-2/3 z-50 bg-blue-200/90 backdrop-blur-xl border-b border-white/30 shadow-2xl rounded-b-3xl flex flex-col overflow-hidden"
+                    // UPDATED: More intense blue
+                    className="absolute top-0 left-0 right-0 h-2/3 z-50 bg-blue-300/95 backdrop-blur-xl border-b border-white/30 shadow-2xl rounded-b-3xl flex flex-col overflow-hidden"
                 >
                     <CloseButton onClick={() => setIsProfileOpen(false)} />
                     
                     <div className="w-full flex-1 flex flex-col p-6 gap-4 mt-8">
-                         <div className="text-2xl font-bold text-blue-800 tracking-wider text-center mb-2">PROFILE</div>
+                         <div className="text-2xl font-bold text-blue-900 tracking-wider text-center mb-2">PROFILE</div>
                          
                          {/* Player Section */}
                          <div className="bg-white/40 rounded-xl p-4 border border-white/50 flex flex-col gap-2">
-                             <div className="text-xs font-bold text-blue-800/60 uppercase tracking-widest">PLAYER</div>
+                             <div className="text-xs font-bold text-blue-900/60 uppercase tracking-widest">PLAYER</div>
                              <div className="h-12 bg-white/50 rounded-lg animate-pulse" />
                          </div>
 
                          {/* Other Section */}
                          <div className="bg-white/40 rounded-xl p-4 border border-white/50 flex flex-col gap-2">
-                             <div className="text-xs font-bold text-blue-800/60 uppercase tracking-widest">OTHER</div>
+                             <div className="text-xs font-bold text-blue-900/60 uppercase tracking-widest">OTHER</div>
                              <div className="h-12 bg-white/50 rounded-lg animate-pulse" />
                          </div>
 
                          {/* Stats Section */}
                          <div className="bg-white/40 rounded-xl p-4 border border-white/50 flex flex-col gap-2 flex-1">
-                             <div className="text-xs font-bold text-blue-800/60 uppercase tracking-widest">STATS</div>
+                             <div className="text-xs font-bold text-blue-900/60 uppercase tracking-widest">STATS</div>
                              <div className="flex-1 bg-white/50 rounded-lg animate-pulse" />
                          </div>
                     </div>
@@ -1387,14 +1427,15 @@ const App = () => {
                 <motion.div
                     {...modalVariants.book}
                     transition={transitionSpring}
-                    className="absolute top-0 right-0 w-3/4 max-w-sm h-full z-50 bg-purple-200/90 backdrop-blur-xl border-l border-white/30 shadow-2xl flex flex-col"
+                    // UPDATED: Intense Purple
+                    className="absolute top-0 right-0 w-3/4 max-w-sm h-full z-50 bg-purple-300/95 backdrop-blur-xl border-l border-white/30 shadow-2xl flex flex-col"
                 >
-                     <div className="p-4 border-b border-purple-300/50 bg-white/60 flex items-center justify-between shrink-0">
+                     <div className="p-4 border-b border-purple-400/50 bg-white/60 flex items-center justify-between shrink-0">
                          <div>
-                             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                             <div className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                                 {bookPage === 0 ? "Collection" : "Favorites"}
                              </div>
-                             <div className="text-xl font-bold text-slate-800">
+                             <div className="text-xl font-bold text-slate-900">
                                 {bookPage === 0 ? "BIRDS" : "PAGE 2"}
                              </div>
                          </div>
@@ -1418,12 +1459,12 @@ const App = () => {
                                     </motion.div>
                                 ))}
                             </div>
-                            <div className="mt-4 text-center text-[10px] text-purple-800 font-bold uppercase tracking-widest">
+                            <div className="mt-4 text-center text-[10px] text-purple-900 font-bold uppercase tracking-widest">
                                 0/{birdCollection.length} Unlocked
                             </div>
                          </div>
                      ) : (
-                         <div className="flex-1 flex flex-col items-center justify-center p-6 text-purple-300">
+                         <div className="flex-1 flex flex-col items-center justify-center p-6 text-purple-900">
                             <span className="text-6xl mb-4 opacity-50">✨</span>
                             <span className="font-bold uppercase tracking-widest text-sm">(Blank Page)</span>
                          </div>
@@ -1478,7 +1519,8 @@ const App = () => {
                             {shopItems[currentShopPage].sections.map((section, idx) => (
                                 <div key={idx} className="flex flex-col gap-1">
                                     {/* Removed skew (italics styling) */}
-                                    <div className="text-[9px] font-bold text-black/60 uppercase tracking-widest pl-1 h-[1.5em]">
+                                    {/* Updated text color for contrast on darker bg */}
+                                    <div className="text-[9px] font-bold text-white/80 uppercase tracking-widest pl-1 h-[1.5em] drop-shadow-md">
                                         {section.title} &nbsp;
                                     </div>
                                     {/* Reduced gap to fit items */}
@@ -1629,7 +1671,7 @@ const SideMenu = ({ item, delay, isActive, onToggle, onSubItemClick }) => (
                 onToggle();
             }}
             whileTap={{ scale: 0.9, x: 2, y: 2 }}
-            className={`\n                w-14 h-14 rounded-xl border border-white/20 shadow-lg \n                flex items-center justify-center relative overflow-hidden group z-10 transition-colors backdrop-blur-sm\n                ${isActive ? 'bg-yellow-300' : 'bg-purple-500/90'}\n            `}
+            className={`\n                w-14 h-14 rounded-xl border border-white/20 shadow-xl \n                flex items-center justify-center relative overflow-hidden group z-10 transition-colors backdrop-blur-sm\n                ${isActive ? 'bg-yellow-400' : 'bg-purple-600/90'}\n            `}
         >
             <span className="text-2xl filter drop-shadow-md leading-none transition-transform opacity-100 text-white">
                 {item.icon}

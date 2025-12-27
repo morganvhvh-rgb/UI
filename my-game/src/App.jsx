@@ -1,24 +1,44 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sword, Shield, Zap, Heart, Star, Skull, Ghost, Gem, 
   Coins, Anchor, Cloud, Flame, Droplet, Sun, Moon, Snowflake,
   Settings, RefreshCw, Trophy, Aperture, Command,
   BicepsFlexed, Sparkles, Hammer, Leaf, CircleAlert,
-  Rat, TreeDeciduous, X, MousePointerClick, ArrowUpRight,
-  Snail, Bomb, TrendingUp, ShieldBan
+  Sprout, X, MousePointerClick, ArrowUpRight,
+  Snail, Bomb, TrendingUp, ShieldBan, Rat, TreeDeciduous,
+  Axe, Hexagon, FlaskRound
 } from 'lucide-react';
 
-// --- Configuration & Helpers ---
+// --- CONFIGURATION & CONSTANTS ---
 
-const GRID_SIZE = 16; // 4x4
+const GRID_SIZE = 16;
 const MAX_KEPT = 4;
+const INITIAL_SHINY_HP = 3;
 
-// 12 Symbols Total: 3 Magic, 3 Armor, 3 Physical, 3 Special
+// Game Balance / Stats
+const MAX_STATS = {
+  magic: 8,
+  armor: 8,
+  physical: 4,
+  heart: 4
+};
+
+// Item Types - For scalability & easier logic checks
+const ITEM_TYPES = {
+  MAGIC: 'magic',
+  ARMOR: 'armor',
+  PHYSICAL: 'physical',
+  SPECIAL: 'special'
+};
+
+// Data-Driven Icon Pool
 const ICON_POOL = [
-  // --- Magic (3) -> Deals 1 Magic Damage ---
+  // --- Magic (3) ---
   { 
     id: 'magic_1',
+    type: ITEM_TYPES.MAGIC,
+    damage: 1,
     icon: Zap, 
     name: "Arcane Bolt", 
     desc: "Deals 1 Magic Damage.", 
@@ -27,6 +47,8 @@ const ICON_POOL = [
   },
   { 
     id: 'magic_2',
+    type: ITEM_TYPES.MAGIC,
+    damage: 1,
     icon: Flame, 
     name: "Incinerate", 
     desc: "Deals 1 Magic Damage.", 
@@ -35,6 +57,8 @@ const ICON_POOL = [
   },
   { 
     id: 'magic_3',
+    type: ITEM_TYPES.MAGIC,
+    damage: 1,
     icon: Snowflake, 
     name: "Glacial Spike", 
     desc: "Deals 1 Magic Damage.", 
@@ -42,9 +66,11 @@ const ICON_POOL = [
     bgColor: "bg-cyan-100"
   },
 
-  // --- Armor (3) -> Deals 1 Armor Damage ---
+  // --- Armor (3) ---
   { 
     id: 'armor_1',
+    type: ITEM_TYPES.ARMOR,
+    damage: 1,
     icon: Anchor, 
     name: "Heavy Slam", 
     desc: "Deals 1 Armor Damage.", 
@@ -53,14 +79,18 @@ const ICON_POOL = [
   },
   { 
     id: 'armor_2',
-    icon: Shield, 
-    name: "Shield Bash", 
+    type: ITEM_TYPES.ARMOR,
+    damage: 1,
+    icon: Hexagon, 
+    name: "Plate Bash", 
     desc: "Deals 1 Armor Damage.", 
     color: "text-blue-700",
     bgColor: "bg-blue-100"
   },
   { 
     id: 'armor_3',
+    type: ITEM_TYPES.ARMOR,
+    damage: 1,
     icon: Gem, 
     name: "Crystal Edge", 
     desc: "Deals 1 Armor Damage.", 
@@ -68,9 +98,11 @@ const ICON_POOL = [
     bgColor: "bg-teal-100"
   },
 
-  // --- Physical (3) -> Deals 3 Physical Damage ---
+  // --- Physical (3) ---
   { 
     id: 'phys_1',
+    type: ITEM_TYPES.PHYSICAL,
+    damage: 3,
     icon: Sword, 
     name: "Broadsword", 
     desc: "Deals 3 Physical Damage.", 
@@ -79,6 +111,8 @@ const ICON_POOL = [
   },
   { 
     id: 'phys_2',
+    type: ITEM_TYPES.PHYSICAL,
+    damage: 3,
     icon: Hammer, 
     name: "Warhammer", 
     desc: "Deals 3 Physical Damage.", 
@@ -87,8 +121,10 @@ const ICON_POOL = [
   },
   { 
     id: 'phys_3',
-    icon: BicepsFlexed, 
-    name: "Brute Force", 
+    type: ITEM_TYPES.PHYSICAL,
+    damage: 3,
+    icon: Axe, 
+    name: "Cleave", 
     desc: "Deals 3 Physical Damage.", 
     color: "text-orange-700", 
     bgColor: "bg-orange-200"
@@ -97,83 +133,181 @@ const ICON_POOL = [
   // --- Special (3) ---
   { 
     id: 'special_1',
+    type: ITEM_TYPES.SPECIAL,
+    damage: 0,
     icon: Star, 
     name: "Cosmic Wish", 
-    desc: "Special Effect: Rerolls grid with high-tier loot.", 
+    desc: "This is a special symbol.", 
     color: "text-yellow-500",
     bgColor: "bg-yellow-100"
   },
   { 
     id: 'special_2',
+    type: ITEM_TYPES.SPECIAL,
+    damage: 0,
     icon: Moon, 
     name: "Nightshade", 
-    desc: "Special Effect: Steals buffs from the enemy.", 
+    desc: "This is a special symbol.", 
     color: "text-indigo-500",
     bgColor: "bg-indigo-100" 
   },
   { 
     id: 'special_3',
+    type: ITEM_TYPES.SPECIAL,
+    damage: 0,
     icon: Coins, 
     name: "Bounty", 
-    desc: "Special Effect: Gain 50 Gold instantly.", 
+    desc: "This is a special symbol.", 
     color: "text-amber-500",
     bgColor: "bg-amber-100"
   },
 ];
 
+// --- LOGIC HELPERS ---
+
+const generateUniqueId = (index) => `${index}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
 const generateGrid = () => {
   return Array.from({ length: GRID_SIZE }).map((_, index) => {
     const data = ICON_POOL[Math.floor(Math.random() * ICON_POOL.length)];
     return {
-      uniqueId: `${index}-${Date.now()}`, 
+      uniqueId: generateUniqueId(index),
       index: index,
       ...data
     };
   });
 };
 
-// --- Defense Components ---
+const getActiveDefenseLayer = (stats) => {
+  if (stats.magic > 0) return 'magic';
+  if (stats.armor > 0) return 'armor';
+  if (stats.physical > 0) return 'physical';
+  if (stats.heart > 0) return 'heart';
+  return null;
+};
 
-// Individual Icon Slot
-const DefenseSlot = ({ icon: Icon, isBroken, color, bgFill }) => {
+const calculateDamageAction = (item, activeLayer) => {
+  if (!activeLayer) return 0;
+
+  if (activeLayer === 'heart') {
+    if (item.type === ITEM_TYPES.MAGIC) return 1;
+    if (item.type === ITEM_TYPES.ARMOR) return 1;
+    if (item.type === ITEM_TYPES.PHYSICAL) return 3;
+    return 0;
+  }
+
+  if (item.type === activeLayer) {
+    return item.damage;
+  }
+
+  return 0;
+};
+
+// --- SUB-COMPONENTS ---
+
+// Helper for Shiny Styles - Replaced with uniform teal pulsing effect below
+const DefenseSlot = React.memo(({ icon: Icon, isBroken, color, bgFill, isShiny, shinyHp, shinyBgColor }) => {
+  
   return (
-    // Fixed width/height container ensures layout stability even when empty
     <div className="w-6 h-6 flex items-center justify-center relative">
       <AnimatePresence>
         {!isBroken && (
           <motion.div
+            key="defense-icon-wrapper"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 1.8, opacity: 0 }} // The "Pop" effect
-            transition={{ duration: 0.2 }} // Fast pop
+            exit={{ 
+              scale: 1.5, 
+              opacity: 0, 
+              filter: "blur(10px)",
+              transition: { duration: 0.3 } 
+            }}
             className="absolute inset-0 flex items-center justify-center"
           >
-            <Icon 
-              size={22} 
-              className={`${color} ${bgFill ? 'fill-current opacity-80' : ''}`} 
-              strokeWidth={2}
-            />
+            {isShiny ? (
+              <div className="relative w-full h-full flex items-center justify-center">
+                
+                {/* 1. Pulsing Teal Background */}
+                <motion.div
+                  className="absolute inset-[-2px] rounded-full bg-teal-400/20 blur-[1px] z-0"
+                  animate={{ 
+                    scale: [1, 1.2, 1],
+                    opacity: [0.5, 0.8, 0.5]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                />
+
+                {/* 2. Crisp Inner Circle (Static or subtle pulse) */}
+                <motion.div 
+                    className="absolute inset-0 rounded-full bg-teal-500/10 border border-teal-400/30 z-0"
+                    animate={{ opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                />
+
+                {/* 3. Icon (Floating) */}
+                <motion.div
+                    className="relative z-10"
+                    animate={{ y: [-1, 1, -1] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                >
+                    <Icon 
+                      size={22} 
+                      className={`${color} ${bgFill ? 'fill-current opacity-80' : ''} drop-shadow-[0_0_6px_rgba(45,212,191,0.6)]`} 
+                      strokeWidth={2}
+                    />
+                </motion.div>
+
+                {/* 4. Glint Effect (Keep existing) */}
+                <div className="absolute inset-0 rounded-full overflow-hidden z-20 pointer-events-none">
+                  <motion.div 
+                    className="absolute top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-white/80 to-transparent"
+                    style={{ skewX: -20, width: '50%' }}
+                    initial={{ x: '-200%' }}
+                    animate={{ x: '300%' }}
+                    transition={{ 
+                      duration: 1.5, 
+                      repeat: Infinity, 
+                      repeatDelay: 2.5, 
+                      ease: "easeInOut" 
+                    }}
+                  />
+                </div>
+
+                {/* 5. HP Indicator */}
+                {shinyHp > 0 && shinyHp < INITIAL_SHINY_HP && (
+                   <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                     <motion.div 
+                       key={`hp-${shinyHp}`}
+                       initial={{ scale: 1.5, opacity: 0 }}
+                       animate={{ scale: 1, opacity: 1 }}
+                       className="font-black text-white text-[14px] drop-shadow-md"
+                       style={{ textShadow: "0px 0px 3px #000, 0px 0px 3px #000" }}
+                     >
+                       {shinyHp}
+                     </motion.div>
+                   </div>
+                )}
+              </div>
+            ) : (
+              <Icon 
+                size={22} 
+                className={`${color} ${bgFill ? 'fill-current opacity-80' : ''} relative z-10`} 
+                strokeWidth={2}
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
-};
+});
 
-// Row of slots
-const DefenseRow = ({ icon, startIndex, rowCount, currentCount, color, bgFill }) => (
+const DefenseRow = ({ icon, startIndex, rowCount, currentCount, color, bgFill, shinyIndex, shinyHp, shinyBgColor, glowColor }) => (
   <div className="flex justify-center gap-2 py-0.5">
     {Array.from({ length: rowCount }).map((_, i) => {
        const globalIndex = startIndex + i;
-       // Determine if this specific slot is "alive" based on current health count
-       // If we have 5 health, indices 0,1,2,3,4 are alive. Index 5 is broken.
-       // Note: Visual order is usually left-to-right. 
-       // If currentCount is 3, that means 0, 1, 2 exist. 3 is broken.
-       // However, we usually lose health from the "end".
-       // Let's say max is 4. Health is 3. We show 3 icons. The 4th slot is empty.
-       // The `globalIndex` (0 to max-1) compared to `currentCount`.
-       // If globalIndex < currentCount, it's alive.
        const isBroken = globalIndex >= currentCount;
+       const isShiny = shinyIndex === globalIndex;
        
        return (
          <DefenseSlot 
@@ -182,19 +316,20 @@ const DefenseRow = ({ icon, startIndex, rowCount, currentCount, color, bgFill })
            isBroken={isBroken} 
            color={color} 
            bgFill={bgFill}
+           isShiny={isShiny}
+           shinyHp={shinyHp}
+           shinyBgColor={shinyBgColor}
+           glowColor={glowColor}
          />
        );
     })}
   </div>
 );
 
-// Group that manages breaking rows
-const DefenseGroup = ({ current, max, icon, color, bgFill }) => {
-  // We use MAX to determine the grid structure, so it never changes size/shape
+const DefenseGroup = ({ current, max, icon, color, bgFill, shinyIndex, shinyHp, shinyBgColor, glowColor }) => {
   const fullRows = Math.floor(max / 4);
   const remainder = max % 4;
   const rows = [];
-
   let currentIndexTracker = 0;
 
   for (let i = 0; i < fullRows; i++) {
@@ -207,6 +342,10 @@ const DefenseGroup = ({ current, max, icon, color, bgFill }) => {
         currentCount={current}
         color={color} 
         bgFill={bgFill} 
+        shinyIndex={shinyIndex}
+        shinyHp={shinyHp}
+        shinyBgColor={shinyBgColor}
+        glowColor={glowColor}
       />
     );
     currentIndexTracker += 4;
@@ -221,15 +360,20 @@ const DefenseGroup = ({ current, max, icon, color, bgFill }) => {
         currentCount={current}
         color={color} 
         bgFill={bgFill} 
+        shinyIndex={shinyIndex}
+        shinyHp={shinyHp}
+        shinyBgColor={shinyBgColor}
+        glowColor={glowColor}
       />
     );
   }
-  
   return <>{rows}</>;
 };
 
+// --- MAIN APP ---
+
 export default function App() {
-  const [gridItems, setGridItems] = useState([]);
+  const [gridItems, setGridItems] = useState(() => generateGrid());
   const [selectedId, setSelectedId] = useState(null); 
   const [keptIds, setKeptIds] = useState([]); 
   const [isBlueTheme, setIsBlueTheme] = useState(false);
@@ -237,17 +381,32 @@ export default function App() {
   const [isRerolling, setIsRerolling] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
   
-  // Game State
-  // We need MAX stats to preserve the grid layout "slots"
-  const maxStats = useMemo(() => ({
-    magic: 8,
-    armor: 8,
-    physical: 4,
-    heart: 4
-  }), []);
-
-  const [enemyStats, setEnemyStats] = useState({ ...maxStats });
+  const [enemyStats, setEnemyStats] = useState({ ...MAX_STATS });
   
+  // Updated Shiny State for 4 Layers
+  const [shinyHealth, setShinyHealth] = useState({ 
+    magic: INITIAL_SHINY_HP, 
+    armor: INITIAL_SHINY_HP, 
+    physical: INITIAL_SHINY_HP, 
+    heart: INITIAL_SHINY_HP 
+  });
+  
+  const [shinyIndices, setShinyIndices] = useState({ 
+    magic: -1, 
+    armor: -1, 
+    physical: -1, 
+    heart: -1 
+  });
+
+  useEffect(() => {
+    setShinyIndices({
+      magic: Math.floor(Math.random() * MAX_STATS.magic),
+      armor: Math.floor(Math.random() * MAX_STATS.armor),
+      physical: Math.floor(Math.random() * MAX_STATS.physical),
+      heart: Math.floor(Math.random() * MAX_STATS.heart),
+    });
+  }, []); 
+
   const selectedItem = useMemo(() => 
     gridItems.find(item => item.index === selectedId), 
   [gridItems, selectedId]);
@@ -258,107 +417,7 @@ export default function App() {
 
   const isAttackReady = keptIds.length === MAX_KEPT;
 
-  useEffect(() => {
-    setGridItems(generateGrid());
-  }, []);
-
-  const handleTileClick = (index) => {
-    if (isAttacking) return;
-    if (keptIds.includes(index)) return;
-    
-    if (selectedId === index) {
-      if (keptIds.length < MAX_KEPT) {
-        setKeptIds(prev => [...prev, index]);
-        setSelectedId(null); 
-      }
-    } else {
-      setSelectedId(index);
-    }
-  };
-
-  const handleRefresh = () => {
-    if (isAttacking) return;
-    setIsRerolling(true);
-    setSelectedId(null);
-    setKeptIds([]);
-    setGridItems(generateGrid());
-    setTimeout(() => {
-      setIsRerolling(false);
-    }, 300);
-  };
-
-  const handleAttack = async () => {
-    if (isAttacking) return;
-    setIsAttacking(true);
-    setSelectedId(null);
-
-    // Create a local copy to mutate step-by-step
-    let currentStats = { ...enemyStats };
-    
-    // Iterate through kept items one by one for the visual sequence
-    for (const item of keptItems) {
-      let targetStat = null;
-      let damage = 0;
-
-      // Determine active layer and if this item affects it
-      if (currentStats.magic > 0) {
-        if (item.id.startsWith('magic')) {
-           targetStat = 'magic';
-           damage = 1;
-        }
-      } 
-      else if (currentStats.armor > 0) {
-        if (item.id.startsWith('armor')) {
-           targetStat = 'armor';
-           damage = 1;
-        }
-      }
-      else if (currentStats.physical > 0) {
-        if (item.id.startsWith('phys')) {
-           targetStat = 'physical';
-           damage = 3;
-        }
-      }
-      else if (currentStats.heart > 0) {
-        targetStat = 'heart';
-        if (item.id.startsWith('magic')) damage = 1;
-        else if (item.id.startsWith('armor')) damage = 1;
-        else if (item.id.startsWith('phys')) damage = 3;
-      }
-
-      // Execute Damage Sequence
-      if (targetStat && damage > 0) {
-        for (let i = 0; i < damage; i++) {
-            // Check if there is still hp in this stat to take
-            if (currentStats[targetStat] > 0) {
-                currentStats[targetStat] -= 1;
-                setEnemyStats({ ...currentStats });
-                // Fast pop delay (150ms)
-                await new Promise(resolve => setTimeout(resolve, 150));
-            }
-        }
-      }
-      // If no effect, loop continues immediately (no await)
-    }
-
-    // Refill the grid
-    const newGrid = [...gridItems];
-    keptIds.forEach(id => {
-       const newItem = ICON_POOL[Math.floor(Math.random() * ICON_POOL.length)];
-       newGrid[id] = {
-         uniqueId: `${id}-${Date.now()}`,
-         index: id,
-         ...newItem
-       };
-    });
-
-    setGridItems(newGrid);
-    setKeptIds([]);
-    setIsAttacking(false);
-  };
-
-  // Define theme classes based on state
-  const theme = {
+  const theme = useMemo(() => ({
     bg: isBlueTheme ? 'bg-[#0B1121]' : 'bg-[#0A261D]',
     tileBase: isBlueTheme ? 'bg-[#1E293B]' : 'bg-[#16382D]',
     tileHover: isBlueTheme ? 'hover:bg-[#334155]' : 'hover:bg-[#1E4538]',
@@ -373,21 +432,96 @@ export default function App() {
     squareBlueBg: 'bg-[#0B1121]', 
     squareGreenIcon: 'text-[#00FF94]',
     squareBlueIcon: 'text-[#38BDF8]',
+  }), [isBlueTheme]);
+
+  const handleTileClick = useCallback((index) => {
+    if (isAttacking) return;
+    if (keptIds.includes(index)) return;
+    
+    if (selectedId === index) {
+      if (keptIds.length < MAX_KEPT) {
+        setKeptIds(prev => [...prev, index]);
+        setSelectedId(null); 
+      }
+    } else {
+      setSelectedId(index);
+    }
+  }, [isAttacking, keptIds, selectedId]);
+
+  const handleRefresh = useCallback(() => {
+    if (isAttacking) return;
+    setIsRerolling(true);
+    setSelectedId(null);
+    setKeptIds([]);
+    setGridItems(generateGrid());
+    setTimeout(() => {
+      setIsRerolling(false);
+    }, 300);
+  }, [isAttacking]);
+
+  const handleAttack = async () => {
+    if (isAttacking) return;
+    setIsAttacking(true);
+    setSelectedId(null);
+
+    let currentStats = { ...enemyStats };
+    let currentShinyHealth = { ...shinyHealth }; 
+
+    for (const item of keptItems) {
+      const targetLayer = getActiveDefenseLayer(currentStats);
+      const damage = calculateDamageAction(item, targetLayer);
+
+      if (targetLayer && damage > 0) {
+        for (let i = 0; i < damage; i++) {
+            if (currentStats[targetLayer] > 0) {
+                const topIndex = currentStats[targetLayer] - 1;
+                const isShinyTarget = shinyIndices[targetLayer] === topIndex;
+
+                if (isShinyTarget) {
+                   if (currentShinyHealth[targetLayer] > 1) {
+                      currentShinyHealth[targetLayer] -= 1;
+                      setShinyHealth({ ...currentShinyHealth });
+                      await new Promise(resolve => setTimeout(resolve, 150));
+                      continue; 
+                   } else {
+                      currentShinyHealth[targetLayer] = 0;
+                      setShinyHealth({ ...currentShinyHealth });
+                   }
+                }
+
+                currentStats[targetLayer] -= 1;
+                setEnemyStats({ ...currentStats });
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+        }
+      }
+    }
+
+    const newGrid = [...gridItems];
+    keptIds.forEach(id => {
+       const newItem = ICON_POOL[Math.floor(Math.random() * ICON_POOL.length)];
+       newGrid[id] = {
+         uniqueId: generateUniqueId(id),
+         index: id,
+         ...newItem
+       };
+    });
+
+    setGridItems(newGrid);
+    setKeptIds([]);
+    setIsAttacking(false);
   };
 
   return (
-    // Outer Wrapper
     <div className="flex items-center justify-center w-full min-h-screen bg-neutral-900 font-sans select-none p-0 sm:p-4">
-      
-      {/* Mobile-Sized Container */}
-      <div className="flex flex-col w-full max-w-md h-[100dvh] sm:h-[90vh] sm:max-h-[800px] bg-[#F5F2EB] text-slate-900 overflow-hidden shadow-2xl relative sm:rounded-[2.5rem] border-0 sm:border-4 border-neutral-800">
+      <div className="flex flex-col w-full max-w-md h-[100dvh] sm:h-[90vh] sm:max-h-[800px] bg-[#F5F2EB] text-slate-900 overflow-hidden shadow-2xl relative border-0">
         
         {/* --- Top Half: Viewport --- */}
         <div className="h-1/2 flex flex-col z-10 relative">
           
-          {/* Slim Top Panel */}
-          <div className="h-12 shrink-0 flex items-center justify-between px-4 bg-[#450a0a] border-b border-red-950">
-            <div className="flex items-center gap-2">
+          {/* Header Bar */}
+          <div className="h-12 shrink-0 flex items-center justify-between px-2 sm:px-4 bg-[#450a0a] border-b border-red-950 overflow-hidden">
+            <div className="flex items-center gap-2 shrink-0">
               <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-[#450a0a]">
                 <span className="font-bold text-[10px]">01</span>
               </div>
@@ -397,7 +531,20 @@ export default function App() {
               </div>
             </div>
             
-            <div className="flex gap-2">
+            {/* New Stats Section: Gold & Flasks */}
+            <div className="flex items-center gap-2 sm:gap-6 mx-1 sm:mx-4 shrink min-w-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 bg-black/20 rounded-full border border-red-900/30 whitespace-nowrap">
+                    <Coins size={14} className="text-amber-400 sm:w-4 sm:h-4" strokeWidth={2.5} />
+                    <span className="text-xs sm:text-sm font-bold text-amber-100/90 tracking-wide">100</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <FlaskRound size={16} className="text-red-500 fill-red-500/20 sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
+                    <FlaskRound size={16} className="text-blue-500 fill-blue-500/20 sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
+                    <FlaskRound size={16} className="text-emerald-500 fill-emerald-500/20 sm:w-[18px] sm:h-[18px]" strokeWidth={2.5} />
+                </div>
+            </div>
+            
+            <div className="flex gap-1 sm:gap-2 shrink-0">
               <button className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-red-200 hover:text-white">
                 <Trophy size={16} strokeWidth={1.5} />
               </button>
@@ -407,33 +554,30 @@ export default function App() {
             </div>
           </div>
 
-          {/* Main Split Area */}
+          {/* Main Display Area */}
           <div className="flex-1 flex bg-[#F5F2EB] min-h-0 relative">
             
-            {/* Left Section: Info Display */}
+            {/* Left Section: Info & Selection */}
             <div className="w-1/2 border-r border-slate-200 relative overflow-hidden">
-              
-              <div className="absolute top-[25%] left-0 right-0 h-px bg-slate-200 z-10" />
               <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-200 z-10" />
 
-              {/* Top 25%: Theme Buttons */}
+              {/* Theme Buttons */}
               <div className="absolute top-0 left-0 right-0 h-[25%] flex items-center justify-center gap-3">
                  <button 
                     onClick={() => setActiveModal('green')}
                     className={`w-12 h-12 ${theme.squareGreenBg} rounded-lg shadow-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer group`}
                  >
-                    <TreeDeciduous size={24} className={`${theme.squareGreenIcon} group-hover:opacity-80`} strokeWidth={2} />
+                    <Sprout size={24} className={`${theme.squareGreenIcon} group-hover:opacity-80`} strokeWidth={2} />
                  </button>
-                 
                  <button 
                     onClick={() => setActiveModal('blue')}
                     className={`w-12 h-12 ${theme.squareBlueBg} rounded-lg shadow-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform cursor-pointer group`}
                  >
-                    <Rat size={24} className={`${theme.squareBlueIcon} group-hover:opacity-80`} strokeWidth={2} />
+                    <Skull size={24} className={`${theme.squareBlueIcon} group-hover:opacity-80`} strokeWidth={2} />
                  </button>
               </div>
 
-              {/* Middle 25% Band: Kept Items */}
+              {/* Kept Items Display */}
               <div className="absolute top-[25%] bottom-[50%] left-0 right-0 flex items-center justify-center px-3">
                 <div className="flex gap-2 z-10 pointer-events-auto">
                    {Array.from({ length: MAX_KEPT }).map((_, i) => {
@@ -450,7 +594,6 @@ export default function App() {
                            ${item && !isAttacking ? 'hover:scale-105 active:scale-95' : ''}
                          `}
                        >
-                         {/* Static Display of selected items - No idle animations during attack */}
                          {item && (
                            <item.icon size={18} className={item.color} strokeWidth={2.5} />
                          )}
@@ -460,10 +603,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Bottom Half: Info Area */}
+              {/* Item Details Panel */}
               <div className="absolute top-1/2 left-0 right-0 bottom-0 flex flex-col justify-start px-3 pt-3">
                 <div className="relative flex flex-col h-full">
-                  {selectedItem ? (
+                  {selectedItem && (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -484,48 +627,79 @@ export default function App() {
                         </p>
                       </div>
                     </motion.div>
-                  ) : (
-                   /* REMOVED NO INPUT TEXT HERE */
-                   null
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Right Section: Defense Layers */}
+            {/* Right Section: Enemy & Defense Layers */}
             <div className="w-1/2 relative bg-slate-50 border-l border-slate-100 -ml-px z-20">
                <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
-               <div className="absolute top-[25%] left-0 right-0 h-px bg-slate-200 z-10" />
-
-               {/* Top 25%: Enemy Header & Buffs */}
-               <div className="absolute top-0 left-0 right-0 h-[25%] px-4 flex items-center justify-between overflow-hidden">
-                  {/* Left: Enemy Icon - Responsive Height */}
-                  <div className="h-full py-3 flex items-center justify-center">
-                    <Snail className="text-[#4c1d95] h-full w-auto max-h-[80px]" strokeWidth={1.5} />
+               
+               {/* Enemy Header */}
+               <div className="absolute top-0 left-0 right-0 h-[25%] px-4 flex items-center justify-between overflow-hidden bg-[#241a16] -mr-[1px] -mt-[1px] border-b border-[#3a2a24]">
+                  <div className="h-full py-3 flex items-center justify-start gap-1">
+                    <Snail className="text-purple-300 h-full w-auto max-h-[80px]" strokeWidth={1.5} />
+                    <div className="flex flex-col justify-center h-full">
+                       <span className="text-[#e7dace] font-black uppercase text-lg tracking-wider leading-none">Snail</span>
+                       <span className="text-[#8c6b5d] text-[10px] font-bold tracking-widest uppercase">Lvl 12</span>
+                    </div>
                   </div>
 
-                  {/* Right: Buffs - Vertical Column */}
                   <div className="flex flex-col justify-center gap-1.5 h-full py-2 mr-1">
-                     <Bomb size={18} className="text-red-700" strokeWidth={2} />
-                     <TrendingUp size={18} className="text-emerald-700" strokeWidth={2} />
-                     <ShieldBan size={18} className="text-slate-600" strokeWidth={2} />
+                     <Bomb size={18} className="text-red-300" strokeWidth={2} />
+                     <TrendingUp size={18} className="text-emerald-300" strokeWidth={2} />
+                     <ShieldBan size={18} className="text-slate-300" strokeWidth={2} />
                   </div>
                </div>
 
-               {/* Defense Layers (Dynamic Stack) */}
+               {/* Defense Stack */}
                <div className="absolute top-[25%] left-0 right-0 bottom-0 flex flex-col items-center justify-center p-2 z-10">
                  <div className="flex flex-col gap-1 w-full">
-                   {/* Heart (Last Layer) */}
-                   <DefenseGroup current={enemyStats.heart} max={maxStats.heart} icon={Heart} color="text-red-500" bgFill />
-                   
-                   {/* Physical (3rd Layer) */}
-                   <DefenseGroup current={enemyStats.physical} max={maxStats.physical} icon={BicepsFlexed} color="text-yellow-600" bgFill />
-                   
-                   {/* Armor (2nd Layer) */}
-                   <DefenseGroup current={enemyStats.armor} max={maxStats.armor} icon={Shield} color="text-slate-400" bgFill />
-                   
-                   {/* Magic (1st Layer - Outer Shell) */}
-                   <DefenseGroup current={enemyStats.magic} max={maxStats.magic} icon={Sparkles} color="text-purple-500" bgFill />
+                   <DefenseGroup 
+                     current={enemyStats.heart} 
+                     max={MAX_STATS.heart} 
+                     icon={Heart} 
+                     color="text-red-500" 
+                     bgFill 
+                     shinyIndex={shinyIndices.heart}
+                     shinyHp={shinyHealth.heart}
+                     shinyBgColor="bg-teal-400/30"
+                     glowColor="teal"
+                   />
+                   <DefenseGroup 
+                     current={enemyStats.physical} 
+                     max={MAX_STATS.physical} 
+                     icon={BicepsFlexed} 
+                     color="text-yellow-600" 
+                     bgFill 
+                     shinyIndex={shinyIndices.physical}
+                     shinyHp={shinyHealth.physical}
+                     shinyBgColor="bg-teal-400/30"
+                     glowColor="teal"
+                   />
+                   <DefenseGroup 
+                     current={enemyStats.armor} 
+                     max={MAX_STATS.armor} 
+                     icon={Shield} 
+                     color="text-slate-400" 
+                     bgFill 
+                     shinyIndex={shinyIndices.armor}
+                     shinyHp={shinyHealth.armor}
+                     shinyBgColor="bg-teal-400/30"
+                     glowColor="teal"
+                   />
+                   <DefenseGroup 
+                     current={enemyStats.magic} 
+                     max={MAX_STATS.magic} 
+                     icon={Sparkles} 
+                     color="text-purple-500" 
+                     bgFill 
+                     shinyIndex={shinyIndices.magic}
+                     shinyHp={shinyHealth.magic}
+                     shinyBgColor="bg-teal-400/30"
+                     glowColor="teal"
+                   />
                  </div>
                </div>
             </div>
@@ -533,12 +707,12 @@ export default function App() {
         </div>
 
         {/* --- Bottom Half: Controls & Grid --- */}
-        <div className={`h-1/2 ${theme.bg} p-4 flex flex-col shadow-[0_-20px_60px_rgba(0,0,0,0.2)] relative z-20 rounded-t-2xl transition-colors duration-500`}>
+        <div className={`h-1/2 ${theme.bg} px-4 pt-2 pb-8 flex flex-col shadow-[0_-20px_60px_rgba(0,0,0,0.2)] relative z-20 rounded-t-2xl transition-colors duration-500`}>
           
-          {/* Header */}
-          <div className="mb-3 grid grid-cols-3 items-center shrink-0 h-12">
+          {/* Controls Header */}
+          <div className="mb-1 grid grid-cols-3 items-center shrink-0 h-12">
             
-            {/* Left: Toggle */}
+            {/* Theme Toggle */}
             <div className="flex justify-start">
               <div 
                 className={`w-14 h-8 rounded-full border ${theme.toggleTrack} flex items-center px-1 cursor-pointer transition-colors duration-300`}
@@ -552,7 +726,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Center: Attack Button */}
+            {/* Attack Button */}
             <div className="flex justify-center">
               <button 
                 disabled={!isAttackReady || isAttacking}
@@ -568,7 +742,6 @@ export default function App() {
                  {isAttackReady && !isAttacking && (
                    <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10 pointer-events-none" />
                  )}
-                 
                  <ArrowUpRight 
                     className={`
                       transition-transform duration-300
@@ -583,7 +756,7 @@ export default function App() {
               </button>
             </div>
 
-            {/* Right: Refresh */}
+            {/* Refresh Button */}
             <div className="flex justify-end">
               <button 
                 disabled={isAttacking}
@@ -601,8 +774,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Grid */}
-          <div className="flex-1 grid grid-cols-4 grid-rows-4 gap-2">
+          {/* Grid Area */}
+          <div className="flex-1 grid grid-cols-4 grid-rows-4 gap-2 min-h-0">
             {gridItems.map((item) => {
               const isSelected = selectedId === item.index;
               const isKept = keptIds.includes(item.index);
@@ -676,16 +849,19 @@ export default function App() {
                     ${activeModal === 'green' ? 'bg-[#0A261D]' : 'bg-[#0B1121]'}
                   `}>
                     {activeModal === 'green' ? (
-                      <TreeDeciduous size={32} className="text-[#00FF94]" />
+                      <Sprout size={32} className="text-[#00FF94]" />
                     ) : (
-                      <Rat size={32} className="text-[#38BDF8]" />
+                      <Skull size={32} className="text-[#38BDF8]" />
                     )}
                   </div>
                   
-                  <div className="h-24 bg-slate-200/50 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center">
-                    <span className="text-slate-400 font-bold text-xs uppercase tracking-widest">
-                      No Data Available
-                    </span>
+                  <div className="flex flex-col gap-2">
+                    {[1, 2, 3].map((num) => (
+                      <div key={num} className="bg-slate-200/50 p-2 rounded-lg flex items-center gap-3">
+                         <div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div>
+                         <span className="text-xs font-semibold text-slate-500 leading-tight">Buff {num}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </motion.div>

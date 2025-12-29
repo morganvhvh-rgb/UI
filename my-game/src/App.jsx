@@ -110,17 +110,17 @@ const generateItemData = (id) => {
   };
 };
 
-const RarityBadge = ({ rarity }) => {
+const TypeBadge = ({ type }) => {
   const colors = {
-    Common: "bg-slate-200 text-slate-600",
-    Uncommon: "bg-green-100 text-green-700",
-    Rare: "bg-blue-100 text-blue-700",
-    Epic: "bg-purple-100 text-purple-700",
-    Legendary: "bg-amber-100 text-amber-700",
+    Weapon: "bg-rose-100 text-rose-700",
+    Consumable: "bg-emerald-100 text-emerald-700",
+    Armor: "bg-slate-200 text-slate-700",
+    Artifact: "bg-violet-100 text-violet-700",
+    Material: "bg-amber-100 text-amber-700",
   };
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${colors[rarity] || colors.Common}`}>
-      {rarity}
+    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${colors[type] || "bg-gray-100 text-gray-700"}`}>
+      {type}
     </span>
   );
 };
@@ -131,9 +131,13 @@ export default function App() {
   const [keptItems, setKeptItems] = useState([]); // Stores up to 5 items
 
   useEffect(() => {
-    const targetCol = 1; 
     // 4x3 grid = 12 items
-    const items = Array.from({ length: 12 }, (_, row) => (row * COLS) + targetCol);
+    // Randomize items: Up to row 26, col 0-2 only
+    const items = Array.from({ length: 12 }, () => {
+      const row = Math.floor(Math.random() * 27); 
+      const col = Math.floor(Math.random() * 3); // Cols 0, 1, 2 only
+      return (row * COLS) + col;
+    });
     setGridItems(items);
   }, []);
 
@@ -171,11 +175,17 @@ export default function App() {
         <section className="h-1/2 flex flex-col bg-white relative overflow-hidden z-10">
           
           <header className="h-10 bg-white border-b border-slate-200 flex items-center justify-between px-4 shadow-sm z-30 flex-shrink-0 relative">
-            <span className="font-bold text-slate-700 text-sm tracking-tight flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              GAME UI
+            <span className="text-slate-800 text-lg tracking-tighter flex items-center gap-2 font-sans relative z-10">
+              <span className="w-2 h-2 rounded-full bg-purple-900 animate-pulse"></span>
+              <span><strong>Daily</strong>Rogue</span>
             </span>
-            <div className="flex gap-1">
+
+            {/* Date - Starts at midpoint and proceeds right */}
+            <div className="absolute left-1/2 text-xs text-slate-600 font-sans leading-relaxed whitespace-nowrap">
+                Monday, Jan. 3rd
+            </div>
+
+            <div className="flex gap-1 relative z-10">
                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
             </div>
@@ -186,9 +196,34 @@ export default function App() {
             {/* LEFT: Mini Details */}
             <div className="w-1/2 h-full border-r border-slate-200 bg-slate-50 relative flex flex-col overflow-hidden">
                
-               {/* 50% HEIGHT SPACER (For future content) */}
-               <div className="h-1/2 w-full flex items-center justify-center border-b border-slate-100 bg-slate-50/50">
-                  <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 opacity-50" />
+               {/* 50% HEIGHT SPACER (Active Item View) */}
+               <div className="h-1/2 w-full flex items-center justify-center border-b border-slate-100 bg-slate-50/50 overflow-hidden relative">
+                  <AnimatePresence mode="wait">
+                    {selectedItem ? (
+                      <motion.div
+                        key={selectedItem.id}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ 
+                          opacity: 1, 
+                          scale: 1,
+                          y: [0, -4, 0]
+                        }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ 
+                          duration: 0.3,
+                          y: {
+                            duration: 2.5,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }
+                        }}
+                      >
+                         <Sprite index={selectedItem.id} size={80} bgClass="bg-transparent" />
+                      </motion.div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 opacity-50" />
+                    )}
+                  </AnimatePresence>
                </div>
 
                {/* Scrollable Details Area - Starts at 50% mark */}
@@ -203,18 +238,12 @@ export default function App() {
                         transition={{ duration: 0.15 }}
                         className="flex flex-col h-full"
                      >
-                        <div className="flex items-start justify-between mb-1">
-                          <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest truncate max-w-[70%]">
-                            {selectedItem.type}
-                          </div>
-                        </div>
-
-                        <h2 className="font-serif font-bold text-lg text-slate-800 leading-tight mb-2">
+                        <h2 className="font-serif font-bold text-lg text-slate-800 leading-tight mb-2 mt-1">
                           {selectedItem.name}
                         </h2>
                         
                         <div className="mb-2">
-                          <RarityBadge rarity={selectedItem.rarity} />
+                          <TypeBadge type={selectedItem.type} />
                         </div>
 
                         <p className="text-xs text-slate-600 font-sans leading-relaxed">
@@ -232,44 +261,86 @@ export default function App() {
             </div>
 
             {/* RIGHT: Monster Viewport */}
-            <div className="w-1/2 h-full bg-slate-100 relative flex items-center justify-center overflow-hidden">
+            <div className="w-1/2 h-full bg-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
                
                {/* Background */}
                <div className="absolute inset-0 bg-gradient-to-b from-slate-200 to-slate-100" />
 
-               <div className="relative z-10 flex items-end justify-center pointer-events-none mb-6">
+               {/* Monster Container - Increased mb-16 to push enemies higher */}
+               <div className="relative z-10 flex items-end justify-center pointer-events-none mb-16">
                  
-                 {/* Enemy 1 (Left) - Z-INDEX 20 (In front), Negative Margin Increased */}
+                 {/* Enemy 1 (Left) - Z-INDEX 20 (In front) */}
                  <motion.div
-                    animate={{ y: [0, -6, 0], x: [-3, 3, -3] }}
-                    transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                    animate={{ 
+                      y: [0, -8, 0], 
+                      x: [-2, 2, -2],
+                      rotate: [-1, 1, -1] 
+                    }}
+                    transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut", delay: 0 }}
                     className="flex flex-col items-center relative -mr-8 z-20"
                  >
                    <MonsterSprite row={3} col={1} size={64} />
-                   <div className="w-10 h-2 bg-black/10 rounded-[50%] blur-sm mt-[-4px]" />
+                   <div className="w-10 h-2 bg-black/40 rounded-[50%] blur-sm mt-[-4px]" />
                  </motion.div>
 
                  {/* Enemy 2 (Center) - Z-INDEX 10 (Behind) */}
                  <motion.div
-                    animate={{ y: [0, -10, 0], x: [2, -2, 2] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    animate={{ 
+                      y: [0, -12, 0], 
+                      x: [3, -3, 3],
+                      rotate: [2, -2, 2] 
+                    }}
+                    transition={{ duration: 4.7, repeat: Infinity, ease: "easeInOut", delay: 1.1 }}
                     className="flex flex-col items-center relative mb-4 z-10"
                  >
                    <MonsterSprite row={4} col={3} size={72} />
-                   <div className="w-12 h-2.5 bg-black/10 rounded-[50%] blur-sm mt-[-4px]" />
+                   <div className="w-12 h-2.5 bg-black/40 rounded-[50%] blur-sm mt-[-4px]" />
                  </motion.div>
 
-                 {/* Enemy 3 (Right) - Z-INDEX 20 (In front), Negative Margin Increased */}
+                 {/* Enemy 3 (Right) - Z-INDEX 20 (In front) */}
                  <motion.div
-                    animate={{ y: [0, -7, 0], x: [-4, 4, -4] }}
-                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                    animate={{ 
+                      y: [0, -6, 0], 
+                      x: [-4, 4, -4],
+                      rotate: [-3, 3, -3] 
+                    }}
+                    transition={{ duration: 3.9, repeat: Infinity, ease: "easeInOut", delay: 2.3 }}
                     className="flex flex-col items-center relative -ml-8 z-20"
                  >
                    <MonsterSprite row={7} col={6} size={64} />
-                   <div className="w-10 h-2 bg-black/10 rounded-[50%] blur-sm mt-[-4px]" />
+                   <div className="w-10 h-2 bg-black/40 rounded-[50%] blur-sm mt-[-4px]" />
                  </motion.div>
                  
                </div>
+
+               {/* Combat Stats - Increased Text Size and margin bottom */}
+               <div className="relative z-10 flex gap-4 text-[11px] font-mono text-slate-500 uppercase tracking-wider mb-6">
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="font-bold text-slate-700">HP</span>
+                    <span className="text-red-500 font-bold">250</span>
+                  </div>
+                  <div className="w-px h-6 bg-slate-300/50" />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="font-bold text-slate-700">ARM</span>
+                    <span className="text-blue-500 font-bold">42</span>
+                  </div>
+                  <div className="w-px h-6 bg-slate-300/50" />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="font-bold text-slate-700">MAG</span>
+                    <span className="text-purple-500 font-bold">15</span>
+                  </div>
+               </div>
+
+               {/* Enemy Loop Section */}
+               <div className="relative z-10 w-full px-4 flex flex-col items-start gap-1">
+                  <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
+                    Enemy Loop:
+                  </span>
+                  <p className="text-xs text-slate-600 font-sans leading-relaxed">
+                    Do nothing, Attack for 5-10, Half heal.
+                  </p>
+               </div>
+
             </div>
 
           </main>

@@ -6,7 +6,7 @@ const SPRITE_SHEET_SRC = '/icons/items.png';
 const SPRITE_SIZE = 32;
 const SHEET_WIDTH = 352;
 const COLS = SHEET_WIDTH / SPRITE_SIZE;
-const SCALE = 1.6; // Grid scale
+const SCALE = 1.6; // Default scale for generic sprites
 
 // --- Monster Configuration ---
 const MONSTER_SRC = '/icons/monsters.png';
@@ -45,7 +45,7 @@ const Sprite = ({ index, bgClass, size = SPRITE_SIZE * SCALE, children, classNam
   );
 };
 
-// New Component for Monster rendering
+// Component for Monster rendering
 const MonsterSprite = ({ row, col, size = 128 }) => {
   const bgX = -(col * SPRITE_SIZE);
   const bgY = -(row * SPRITE_SIZE);
@@ -128,29 +128,25 @@ const RarityBadge = ({ rarity }) => {
 export default function App() {
   const [gridItems, setGridItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [keptItems, setKeptItems] = useState([]); // Stores up to 4 items
+  const [keptItems, setKeptItems] = useState([]); // Stores up to 5 items
 
   useEffect(() => {
     const targetCol = 1; 
-    const items = Array.from({ length: 16 }, (_, row) => (row * COLS) + targetCol);
+    // 4x3 grid = 12 items
+    const items = Array.from({ length: 12 }, (_, row) => (row * COLS) + targetCol);
     setGridItems(items);
   }, []);
 
   const handleItemClick = (spriteIndex) => {
     const newItem = generateItemData(spriteIndex);
     
-    // Check if we are tapping the already selected item
     if (selectedItem && selectedItem.id === newItem.id) {
-      // Logic: If already in keptItems, maybe remove it? Or just do nothing?
-      // User request: "keep up to 4 items". Let's toggle or add.
-      // We will add if not present, limited to 4.
       const isAlreadyKept = keptItems.find(k => k.id === newItem.id);
       
       if (!isAlreadyKept) {
-        if (keptItems.length < 4) {
+        if (keptItems.length < 5) {
           setKeptItems(prev => [...prev, newItem]);
         } else {
-          // Optional: Replace the last one, or show feedback. For now, shift queue.
           setKeptItems(prev => [...prev.slice(1), newItem]);
         }
       }
@@ -165,7 +161,7 @@ export default function App() {
   };
 
   return (
-    /* Outer Shell: Dark backdrop for desktop focus */
+    /* Outer Shell */
     <div className="fixed inset-0 w-full h-full bg-neutral-900 flex items-center justify-center overflow-hidden font-sans">
       
       {/* Device Frame */}
@@ -187,46 +183,16 @@ export default function App() {
 
           <main className="flex-1 w-full relative flex flex-row overflow-hidden">
             
-            {/* LEFT: Kept Items & Mini Details */}
+            {/* LEFT: Mini Details */}
             <div className="w-1/2 h-full border-r border-slate-200 bg-slate-50 relative flex flex-col overflow-hidden">
                
-               {/* 1. Kept Items Row - Pushed Down */}
-               <div className="flex-shrink-0 mt-12 mb-2 px-2 flex justify-center z-10">
-                 <div className="bg-white rounded-lg p-2 shadow-sm border border-slate-100 flex justify-center items-center gap-2">
-                   {[0, 1, 2, 3].map((slotIndex) => {
-                     const item = keptItems[slotIndex];
-                     return (
-                       <div 
-                         key={slotIndex} 
-                         className="w-10 h-10 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center relative overflow-hidden transition-all duration-200"
-                       >
-                         {item ? (
-                           <motion.div
-                             layoutId={`kept-${item.id}`}
-                             initial={{ scale: 0 }}
-                             animate={{ scale: 1 }}
-                             className="cursor-pointer w-full h-full flex items-center justify-center"
-                             onClick={() => setSelectedItem(item)}
-                           >
-                             <Sprite index={item.id} size={36} bgClass="bg-transparent" />
-                             <button 
-                               className="absolute inset-0 bg-black/10 opacity-0 hover:opacity-100 flex items-center justify-center text-white font-bold text-xs"
-                               onClick={(e) => removeKeptItem(item.id, e)}
-                             >
-                               x
-                             </button>
-                           </motion.div>
-                         ) : (
-                           <div className="w-1 h-1 rounded-full bg-slate-200" />
-                         )}
-                       </div>
-                     );
-                   })}
-                 </div>
+               {/* 50% HEIGHT SPACER (For future content) */}
+               <div className="h-1/2 w-full flex items-center justify-center border-b border-slate-100 bg-slate-50/50">
+                  <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 opacity-50" />
                </div>
 
-               {/* 2. Scrollable Details Area - Padded top */}
-               <div className="flex-1 px-3 pb-3 pt-4 flex flex-col overflow-y-auto no-scrollbar">
+               {/* Scrollable Details Area - Starts at 50% mark */}
+               <div className="h-1/2 px-4 py-4 flex flex-col overflow-y-auto no-scrollbar bg-white">
                  <AnimatePresence mode="wait">
                    {selectedItem ? (
                      <motion.div 
@@ -238,12 +204,12 @@ export default function App() {
                         className="flex flex-col h-full"
                      >
                         <div className="flex items-start justify-between mb-1">
-                          <div className="text-[9px] font-mono text-slate-400 uppercase tracking-widest truncate max-w-[70%]">
+                          <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest truncate max-w-[70%]">
                             {selectedItem.type}
                           </div>
                         </div>
 
-                        <h2 className="font-serif font-bold text-base text-slate-800 leading-tight mb-1">
+                        <h2 className="font-serif font-bold text-lg text-slate-800 leading-tight mb-2">
                           {selectedItem.name}
                         </h2>
                         
@@ -251,14 +217,14 @@ export default function App() {
                           <RarityBadge rarity={selectedItem.rarity} />
                         </div>
 
-                        <p className="text-[10px] text-slate-600 font-sans leading-relaxed flex-1">
+                        <p className="text-xs text-slate-600 font-sans leading-relaxed">
                           {selectedItem.description}
                         </p>
                      </motion.div>
                    ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-300 text-xs text-center px-2">
                       <p>Select an item.</p>
-                      <p className="text-[9px] mt-1 opacity-70">Double-tap to keep.</p>
+                      <p className="text-[10px] mt-1 opacity-70">Double-tap to keep.</p>
                     </div>
                    )}
                  </AnimatePresence>
@@ -271,43 +237,33 @@ export default function App() {
                {/* Background */}
                <div className="absolute inset-0 bg-gradient-to-b from-slate-200 to-slate-100" />
 
-               <div className="relative z-10 flex items-end justify-center pointer-events-none mb-6 gap-1">
+               <div className="relative z-10 flex items-end justify-center pointer-events-none mb-6">
                  
-                 {/* Enemy 1 (Left) - Row 3 Col 1 */}
+                 {/* Enemy 1 (Left) - Z-INDEX 20 (In front), Negative Margin Increased */}
                  <motion.div
-                    animate={{ 
-                      y: [0, -6, 0],
-                      x: [-3, 3, -3] 
-                    }}
+                    animate={{ y: [0, -6, 0], x: [-3, 3, -3] }}
                     transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-                    className="flex flex-col items-center relative"
+                    className="flex flex-col items-center relative -mr-8 z-20"
                  >
                    <MonsterSprite row={3} col={1} size={64} />
                    <div className="w-10 h-2 bg-black/10 rounded-[50%] blur-sm mt-[-4px]" />
                  </motion.div>
 
-                 {/* Enemy 2 (Center/Main) - Row 4 Col 3 */}
-                 {/* Removed complex layering/z-indexes to ensure visibility */}
+                 {/* Enemy 2 (Center) - Z-INDEX 10 (Behind) */}
                  <motion.div
-                    animate={{ 
-                      y: [0, -10, 0],
-                      x: [2, -2, 2]
-                    }}
+                    animate={{ y: [0, -10, 0], x: [2, -2, 2] }}
                     transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    className="flex flex-col items-center relative mb-4"
+                    className="flex flex-col items-center relative mb-4 z-10"
                  >
                    <MonsterSprite row={4} col={3} size={72} />
                    <div className="w-12 h-2.5 bg-black/10 rounded-[50%] blur-sm mt-[-4px]" />
                  </motion.div>
 
-                 {/* Enemy 3 (Right) - Row 7 Col 6 */}
+                 {/* Enemy 3 (Right) - Z-INDEX 20 (In front), Negative Margin Increased */}
                  <motion.div
-                    animate={{ 
-                      y: [0, -7, 0], 
-                      x: [-4, 4, -4]
-                    }}
+                    animate={{ y: [0, -7, 0], x: [-4, 4, -4] }}
                     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                    className="flex flex-col items-center relative"
+                    className="flex flex-col items-center relative -ml-8 z-20"
                  >
                    <MonsterSprite row={7} col={6} size={64} />
                    <div className="w-10 h-2 bg-black/10 rounded-[50%] blur-sm mt-[-4px]" />
@@ -322,57 +278,72 @@ export default function App() {
         {/* --- BOTTOM HALF: INVENTORY --- */}
         <section className="h-1/2 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20 flex flex-col relative overflow-hidden">
           
-          <div className="w-full h-full overflow-hidden flex flex-col items-center p-2">
+          <div className="w-full h-full overflow-hidden flex flex-col items-center p-0">
             
-            {/* Inventory Grid */}
-            <div className="flex-1 flex items-center justify-center w-full">
-              <div className="grid grid-cols-4 gap-2 sm:gap-3">
+            {/* Kept Items Row - Fixed Height, Centered Content, Bottom Border */}
+            <div className="h-24 w-full flex-shrink-0 border-b border-slate-100 flex items-center justify-center bg-slate-50/30 z-10">
+              <div className="flex justify-center items-center gap-3">
+                {[0, 1, 2, 3, 4].map((slotIndex) => {
+                  const item = keptItems[slotIndex];
+                  return (
+                    <div 
+                      key={slotIndex} 
+                      className="w-12 h-12 rounded-lg bg-white border border-slate-200 shadow-sm flex items-center justify-center relative overflow-hidden transition-all duration-200"
+                    >
+                      {item ? (
+                        <motion.div
+                          layoutId={`kept-${item.id}`}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="cursor-pointer w-full h-full flex items-center justify-center"
+                          onClick={() => setSelectedItem(item)}
+                        >
+                          <Sprite index={item.id} size={40} bgClass="bg-transparent" />
+                          <button 
+                            className="absolute inset-0 bg-black/10 opacity-0 hover:opacity-100 flex items-center justify-center text-white font-bold text-xs"
+                            onClick={(e) => removeKeptItem(item.id, e)}
+                          >
+                            x
+                          </button>
+                        </motion.div>
+                      ) : (
+                        <div className="w-2 h-2 rounded-full bg-slate-100" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Inventory Grid - NO SCROLL, CENTERED */}
+            <div className="flex-1 flex items-center justify-center w-full overflow-hidden min-h-0">
+              <div className="grid grid-cols-4 gap-2">
                 {gridItems.map((spriteIndex, i) => {
                   const isSelected = selectedItem && selectedItem.id === spriteIndex;
                   const isKept = keptItems.some(k => k.id === spriteIndex);
                   
-                  const row = Math.floor(i / 4);
-                  let cellColor = 'bg-gray-300';
-                  if (row < 2) cellColor = 'bg-red-100';         
-                  else if (row === 2) cellColor = 'bg-blue-100'; 
-                  else if (row === 3) cellColor = 'bg-yellow-100';
-
                   return (
                     <motion.div
                       key={i}
                       layoutId={`item-${i}`}
-                      initial={{ opacity: 0, scale: 0.5 }}
-                      animate={{ 
-                        opacity: 1, 
-                        scale: 1,
-                        borderColor: isSelected 
-                          ? 'rgb(99 102 241)' 
-                          : isKept ? 'rgb(16 185 129)' : 'rgba(241, 245, 249, 1)',
-                        borderWidth: (isSelected || isKept) ? '2px' : '2px'
-                      }}
-                      transition={{ delay: i * 0.015 }}
-                      whileTap={{ scale: 0.9 }}
+                      // Removed generic color transition for INSTANT feel
                       className={`
-                        cursor-pointer rounded-lg p-0.5 relative group
-                        transition-colors duration-200 bg-slate-50
-                        ${isSelected ? 'shadow-md z-10' : 'shadow-sm hover:border-slate-300'}
+                        cursor-pointer rounded-xl p-1 relative group
+                        ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50 shadow-md z-10' : 'hover:bg-slate-50'}
+                        ${isKept ? 'opacity-40 grayscale pointer-events-none' : ''}
                       `}
                       onClick={() => handleItemClick(spriteIndex)}
                     >
-                      <Sprite index={spriteIndex} bgClass={cellColor} size={SPRITE_SIZE * 1.5} />
-                      
-                      {/* Selection/Kept Indicator Dots */}
-                      <div className="absolute -top-1 -right-1 flex gap-0.5">
-                         {isKept && <div className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />}
-                         {isSelected && !isKept && <div className="w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-white" />}
-                      </div>
+                      {/* Reduced Sprite Size to 1.75 to ensure 3 rows fit without scrolling */}
+                      <Sprite index={spriteIndex} bgClass="bg-yellow-50" size={SPRITE_SIZE * 1.75} />
                     </motion.div>
                   );
                 })}
               </div>
             </div>
 
-            <div className="h-6 flex items-center justify-center text-[9px] text-slate-300 font-mono uppercase tracking-[0.2em] select-none">
+            {/* Footer Label */}
+            <div className="h-6 flex items-start justify-center text-[8px] text-slate-300 font-mono uppercase tracking-[0.2em] select-none pb-1 flex-shrink-0">
               Inventory // Bag 1
             </div>
             

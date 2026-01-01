@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sword, RefreshCw, FlaskRound } from 'lucide-react';
+import { Sword, RefreshCw, FlaskRound, User } from 'lucide-react';
 
 // --- Configuration ---
 const SPRITE_SHEET_SRC = '/icons/items.png';
@@ -36,6 +36,11 @@ const ITEM_POOL = Object.keys(ITEM_DEFINITIONS).map(Number);
 // --- Monster Configuration ---
 const MONSTER_SRC = '/icons/monsters.png';
 const MONSTER_SHEET_WIDTH = 384;
+
+// --- Rogue Configuration ---
+const ROGUE_SRC = '/icons/rogues.png';
+const ROGUE_SHEET_WIDTH = 224;
+const ROGUE_SPRITE_SIZE = 32;
 
 // --- Helper Functions ---
 const getItemBgColor = (id) => {
@@ -74,7 +79,8 @@ const Sprite = ({ index, bgClass, size = SPRITE_SIZE * SCALE, className = "" }) 
           backgroundPosition: `${bgX * internalScale}px ${bgY * internalScale}px`,
           backgroundSize: `${SHEET_WIDTH * internalScale}px auto`,
           imageRendering: 'pixelated',
-          filter: 'drop-shadow(0px 3px 2px rgba(0,0,0,0.4))' 
+          // UPDATED: 0px blur for pixelated look, 2px offset for tighter shadow, 0.6 opacity for darkness
+          filter: 'drop-shadow(0px 2px 0px rgba(0,0,0,0.6))' 
         }}
       />
     </div>
@@ -103,6 +109,35 @@ const MonsterSprite = ({ row, col, size = 128 }) => {
           backgroundImage: `url(${MONSTER_SRC})`,
           backgroundPosition: `${bgX * internalScale}px ${bgY * internalScale}px`,
           backgroundSize: `${MONSTER_SHEET_WIDTH * internalScale}px auto`,
+        }}
+      />
+    </div>
+  );
+};
+
+// Component for Rogue rendering
+const RogueSprite = ({ row, col, size = 128 }) => {
+  const bgX = -(col * ROGUE_SPRITE_SIZE);
+  const bgY = -(row * ROGUE_SPRITE_SIZE);
+  const internalScale = size / ROGUE_SPRITE_SIZE;
+
+  return (
+    <div
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        imageRendering: 'pixelated',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          backgroundImage: `url(${ROGUE_SRC})`,
+          backgroundPosition: `${bgX * internalScale}px ${bgY * internalScale}px`,
+          backgroundSize: `${ROGUE_SHEET_WIDTH * internalScale}px auto`,
         }}
       />
     </div>
@@ -161,6 +196,12 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [keptItems, setKeptItems] = useState([]); 
   const [showModal, setShowModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false); 
+  
+  // Stats State
+  const [flaskCount, setFlaskCount] = useState(3);
+  const [rerollCount, setRerollCount] = useState(3);
+  const [turnCount, setTurnCount] = useState(5);
 
   useEffect(() => {
     const items = Array.from({ length: 12 }, () => {
@@ -202,12 +243,22 @@ export default function App() {
   };
 
   const rerollItems = () => {
-    const newItems = Array.from({ length: 12 }, () => {
-      const randomIndex = Math.floor(Math.random() * ITEM_POOL.length);
-      return ITEM_POOL[randomIndex];
-    });
-    setGridItems(newItems);
-    setSelectedItem(null);
+    if (rerollCount > 0) {
+      setRerollCount(prev => prev - 1);
+      const newItems = Array.from({ length: 12 }, () => {
+        const randomIndex = Math.floor(Math.random() * ITEM_POOL.length);
+        return ITEM_POOL[randomIndex];
+      });
+      setGridItems(newItems);
+      setSelectedItem(null);
+    }
+  };
+
+  const useFlask = () => {
+    if (flaskCount > 0) {
+      setFlaskCount(prev => prev - 1);
+      // Logic for using flask would go here
+    }
   };
 
   return (
@@ -215,7 +266,7 @@ export default function App() {
       
       <div className="w-full h-[100dvh] sm:w-[420px] sm:h-[800px] sm:max-h-[95vh] bg-slate-50 text-slate-800 select-none flex flex-col relative sm:rounded-[2rem] sm:border-[8px] sm:border-gray-800 sm:shadow-2xl overflow-hidden">
       
-        {/* Modal Overlay */}
+        {/* Settings Modal Overlay */}
         <AnimatePresence>
           {showModal && (
             <motion.div
@@ -242,6 +293,60 @@ export default function App() {
                 <button 
                   onClick={() => setShowModal(false)}
                   className="mt-6 px-6 py-2 bg-slate-800 text-white rounded-full text-sm font-medium hover:bg-slate-700 active:scale-95 transition-all"
+                >
+                  Close
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* User Modal Overlay */}
+        <AnimatePresence>
+          {showUserModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+              onClick={() => setShowUserModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                // UPDATED: Matched Settings modal layout (centered flex col)
+                className="w-full bg-white rounded-2xl shadow-2xl p-6 flex flex-col items-center justify-center min-h-[200px]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="w-full flex-1 flex flex-row items-center">
+                  {/* Left: Rogue Character with Animation */}
+                  <div className="w-1/2 flex flex-col items-center justify-center">
+                     <motion.div
+                        animate={{ 
+                          y: [0, -6, 0], 
+                          scale: [1, 1.05, 1] 
+                        }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                        className="flex flex-col items-center relative z-10"
+                     >
+                       {/* No border, just the sprite and shadow */}
+                       <RogueSprite row={0} col={2} size={96} />
+                       <div className="w-14 h-2 bg-black/30 rounded-[50%] blur-[2px] mt-[-2px]" />
+                     </motion.div>
+                     <span className="font-serif font-bold text-slate-800 mt-2">The Rogue</span>
+                  </div>
+
+                  {/* Right: Blank */}
+                  <div className="w-1/2 h-full">
+                    {/* Intentionally blank as requested */}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowUserModal(false)}
+                  // UPDATED: Dark purple color matching button, centered at bottom
+                  className="mt-6 px-6 py-2 bg-[#2a0a36] text-white rounded-full text-sm font-medium hover:opacity-90 active:scale-95 transition-all"
                 >
                   Close
                 </button>
@@ -291,10 +396,13 @@ export default function App() {
                             transition={{ duration: 0.2, delay: 0.05 }}
                          >
                             <motion.div
-                                animate={{ y: [0, -4, 0] }}
-                                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                                animate={{ 
+                                  y: [0, -4, 0],
+                                  scale: [1, 1.1, 1] 
+                                }}
+                                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                             >
-                                <Sprite index={selectedItem.id} size={80} bgClass="bg-transparent" />
+                                <Sprite index={selectedItem.id} size={120} bgClass="bg-transparent" />
                             </motion.div>
                          </motion.div>
                       </motion.div>
@@ -306,14 +414,25 @@ export default function App() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                       >
-                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 opacity-50" />
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {/* NEW USER BUTTON POSITION: Top Left Quadrant (Symbol Display), Bottom Left Corner */}
+                  <div className="absolute bottom-2 left-2 z-20">
+                     <motion.button
+                       whileTap={{ scale: 0.9 }}
+                       onClick={() => setShowUserModal(true)}
+                       // Darker purple theme: bg-[#2a0a36]
+                       className="w-8 h-8 rounded bg-[#2a0a36] text-white flex items-center justify-center shadow-md hover:opacity-90 transition-opacity"
+                     >
+                       <User size={16} />
+                     </motion.button>
+                  </div>
                </div>
 
-               {/* Details Text Area */}
-               <div className="h-1/2 px-4 pt-2 pb-16 flex flex-col overflow-y-auto no-scrollbar bg-white relative">
+               {/* Details Text Area - Custom parchment background */}
+               <div className="h-1/2 px-4 pt-2 pb-16 flex flex-col overflow-y-auto no-scrollbar bg-[#eaddcf] relative">
                  <AnimatePresence mode="wait">
                    {selectedItem ? (
                      <motion.div 
@@ -330,14 +449,14 @@ export default function App() {
                         <div className="mb-1">
                           <TypeBadge type={selectedItem.type} />
                         </div>
-                        <p className="text-xs text-slate-600 font-sans leading-relaxed">
+                        <p className="text-xs text-slate-700 font-sans leading-relaxed">
                           {selectedItem.description}
                         </p>
                      </motion.div>
                    ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-300 text-xs text-center px-2">
-                      <p>Tap the grid.</p>
-                      <p className="mt-1">Tap again to keep.</p>
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs text-center px-2">
+                      <p>Tap a symbol on the grid.</p>
+                      <p className="mt-1">Tap again to keep it.</p>
                     </div>
                    )}
                  </AnimatePresence>
@@ -357,7 +476,8 @@ export default function App() {
                     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
                     className="flex flex-col items-center relative z-10"
                  >
-                   <MonsterSprite row={4} col={3} size={112} />
+                   {/* Changed to row 4, col 2 */}
+                   <MonsterSprite row={4} col={2} size={112} />
                    <div className="w-20 h-3 bg-black/40 rounded-[50%] blur-sm mt-[-6px]" />
                  </motion.div>
                </div>
@@ -395,9 +515,12 @@ export default function App() {
         
         <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto"> 
             <motion.button
-                whileTap={{ scale: 0.9, rotate: -45 }}
-                className="w-10 h-10 rounded-full bg-pink-900 text-white flex items-center justify-center shadow-lg"
-                onClick={() => {}} 
+                disabled={flaskCount === 0}
+                whileTap={flaskCount > 0 ? { scale: 0.9, rotate: -45 } : {}}
+                className={`w-10 h-10 rounded-full text-white flex items-center justify-center shadow-lg transition-colors duration-200
+                  ${flaskCount > 0 ? 'bg-pink-900 cursor-pointer' : 'bg-slate-300 cursor-not-allowed text-slate-100'}
+                `}
+                onClick={useFlask}
             >
                 <FlaskRound size={18} />
             </motion.button>
@@ -415,7 +538,7 @@ export default function App() {
                   scale: { duration: 0.3 },
                   rotate: { duration: 4, repeat: Infinity, ease: "linear" } 
                 }}
-                className="absolute w-20 h-20 rounded-full bg-gradient-to-tr from-amber-300 via-red-500 to-transparent blur-sm"
+                className="absolute w-20 h-20 rounded-full bg-gradient-to-tr from-amber-300 via-red-500 to-transparent blur-[1px]"
               />
             )}
           </AnimatePresence>
@@ -443,7 +566,8 @@ export default function App() {
           >
             <Sword 
               size={28} 
-              className={`transition-colors duration-300 ${keptItems.length === 5 ? 'text-white' : 'text-slate-600'}`} 
+              // Changed deactivated color to text-slate-400 (lighter gray)
+              className={`transition-colors duration-300 ${keptItems.length === 5 ? 'text-white' : 'text-slate-400'}`} 
               strokeWidth={2.5}
             />
           </motion.button>
@@ -451,8 +575,11 @@ export default function App() {
 
         <div className="absolute top-1/2 left-3/4 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto"> 
             <motion.button
-                whileTap={{ scale: 0.9, rotate: -45 }}
-                className="w-10 h-10 rounded-full bg-blue-950 text-white flex items-center justify-center shadow-lg"
+                disabled={rerollCount === 0}
+                whileTap={rerollCount > 0 ? { scale: 0.9, rotate: -45 } : {}}
+                className={`w-10 h-10 rounded-full text-white flex items-center justify-center shadow-lg transition-colors duration-200
+                  ${rerollCount > 0 ? 'bg-blue-950 cursor-pointer' : 'bg-slate-300 cursor-not-allowed text-slate-100'}
+                `}
                 onClick={rerollItems}
             >
                 <RefreshCw size={18} />
@@ -460,19 +587,19 @@ export default function App() {
         </div>
 
         {/* --- BOTTOM HALF: INVENTORY --- */}
-        <section className="h-1/2 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20 flex flex-col relative overflow-hidden">
+        <section className="h-1/2 bg-slate-900 border-t border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20 flex flex-col relative overflow-hidden">
           
           <div className="w-full h-full overflow-hidden flex flex-col items-center p-0">
             
             {/* Kept Items Row */}
-            <div className="h-24 w-full flex-shrink-0 border-b border-slate-100 flex items-center justify-center bg-slate-50/30 z-10">
+            <div className="h-24 w-full flex-shrink-0 border-b border-slate-800 flex items-center justify-center bg-slate-800/30 z-10">
               <div className="flex justify-center items-center gap-3 pt-6">
                 {[0, 1, 2, 3, 4].map((slotIndex) => {
                   const item = keptItems[slotIndex];
                   const isSelected = item && selectedItem && selectedItem.uniqueId === `kept-${slotIndex}`;
                   
-                  // UPDATED: Move bg color to container so it fills the slot completely
-                  const slotBgClass = item ? getItemBgColor(item.id) : 'bg-white';
+                  // UPDATED: Dark background for empty slots
+                  const slotBgClass = item ? getItemBgColor(item.id) : 'bg-slate-800';
                   
                   return (
                     <div 
@@ -480,8 +607,8 @@ export default function App() {
                       className={`
                         w-12 h-12 rounded-lg border shadow-sm flex items-center justify-center relative overflow-hidden transition-all duration-200
                         ${isSelected 
-                          ? `border-indigo-500 ring-2 ring-indigo-400 z-10 ${slotBgClass}` 
-                          : `${slotBgClass} border-slate-200`
+                          ? `border-teal-600 ring-2 ring-teal-500 z-10 ${slotBgClass}` 
+                          : `${slotBgClass} border-slate-700`
                         }
                       `}
                     >
@@ -493,11 +620,10 @@ export default function App() {
                           className="cursor-pointer w-full h-full flex items-center justify-center"
                           onClick={() => handleKeptItemClick(item, slotIndex)}
                         >
-                          {/* UPDATED: Sprite uses transparent BG to allow slot BG to show through */}
                           <Sprite index={item.id} size={40} bgClass="bg-transparent" />
                         </motion.div>
                       ) : (
-                        <span className="text-slate-300 font-serif font-bold text-lg select-none">
+                        <span className="text-slate-600 font-serif font-bold text-lg select-none">
                           {slotIndex + 1}
                         </span>
                       )}
@@ -519,9 +645,10 @@ export default function App() {
                       key={i}
                       layoutId={`grid-item-${i}`}
                       // UPDATED: Removed padding (p-1) and bg-indigo-200 to make border hug the sprite
+                      // UPDATED: Changed Selection to Teal
                       className={`
                         cursor-pointer rounded-sm relative group transition-all duration-100
-                        ${isSelected ? 'ring-2 ring-indigo-500 shadow-lg z-10 scale-105' : 'hover:shadow-md'}
+                        ${isSelected ? 'ring-2 ring-teal-500 shadow-lg z-10 scale-105' : 'hover:shadow-md'}
                         ${isKept ? 'opacity-40 grayscale pointer-events-none' : ''}
                       `}
                       onClick={() => handleItemClick(spriteIndex, i)}
@@ -533,8 +660,13 @@ export default function App() {
               </div>
             </div>
 
-            <div className="h-6 flex items-start justify-center text-[8px] text-slate-300 font-mono uppercase tracking-[0.2em] select-none pb-1 flex-shrink-0">
-              Inventory // Bag 1
+            {/* UPDATED: Dynamic stats from state */}
+            <div className="h-8 flex items-center justify-center gap-4 text-xs text-slate-500 font-mono uppercase tracking-widest select-none flex-shrink-0">
+              <span>Flasks: <span className="text-slate-300">{flaskCount}</span></span>
+              <span>|</span>
+              <span>Turns: <span className="text-slate-300">{turnCount}</span></span>
+              <span>|</span>
+              <span>Rerolls: <span className="text-slate-300">{rerollCount}</span></span>
             </div>
             
           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Sword, RefreshCw, FlaskRound } from 'lucide-react';
 
 // --- Configuration ---
 const SPRITE_SHEET_SRC = '/icons/items.png';
@@ -29,7 +30,7 @@ const ITEM_DEFINITIONS = {
   256: { name: "Multi Arrow", type: "Item" },       // 23/3
   233: { name: "Magic Book", type: "Item" },        // 21/2 
   234: { name: "Holy Book", type: "Item" },         // 21/3
-  146: { name: "Heavy Gauntlets", type: "Item" }    // 13/3
+  146: { name: "Gauntlets", type: "Item" }          // 13/3 (Renamed from Heavy Gauntlets)
 };
 
 const ITEM_POOL = Object.keys(ITEM_DEFINITIONS).map(Number);
@@ -215,10 +216,8 @@ export default function App() {
 
     // If clicking the item that is currently selected, unequip it
     if (selectedItem && selectedItem.uniqueId === uniqueId) {
-      setKeptItems(prev => prev.filter(k => k.id !== item.id)); // Note: ID removal is risky if we allow duplicates in bag, but bag slots are unique so handleKeptItemClick logic might need tweak if we want to remove specific slot, but currently filter by ID removes ALL instances in bag.
-      // However, for the purpose of the request "fixing grid gray out", the grid logic below is key.
-      // Ideally we should remove by index in array or unique ID.
-      // For now, let's stick to the minimal changes requested to fix the grid bug.
+      // FIX: Filter by sourceGridIndex (unique per grid item) instead of id (shared by type)
+      setKeptItems(prev => prev.filter(k => k.sourceGridIndex !== item.sourceGridIndex));
       setSelectedItem(null);
     } else {
       // Otherwise, just select it to show details
@@ -228,7 +227,19 @@ export default function App() {
 
   const removeKeptItem = (id, e) => {
     e.stopPropagation();
-    setKeptItems(prev => prev.filter(item => item.id !== id));
+    // Updated this unused helper too for consistency, in case it's used later
+    // Note: 'id' param here refers to the unique identifier we'd need to pass, not the sprite ID
+    // Since this isn't used in the main render, leaving as-is or conceptually updating to filter by object
+    setKeptItems(prev => prev.filter(item => item.id !== id)); 
+  };
+
+  const rerollItems = () => {
+    const newItems = Array.from({ length: 12 }, () => {
+      const randomIndex = Math.floor(Math.random() * ITEM_POOL.length);
+      return ITEM_POOL[randomIndex];
+    });
+    setGridItems(newItems);
+    setSelectedItem(null);
   };
 
   return (
@@ -277,14 +288,13 @@ export default function App() {
         <section className="h-1/2 flex flex-col bg-white relative overflow-hidden z-10">
           
           <header className="h-10 bg-white border-b border-slate-200 flex items-center justify-between px-4 shadow-sm z-30 flex-shrink-0 relative">
-            {/* Font changed to font-serif */}
-            <span className="text-slate-800 text-lg tracking-tighter flex items-center gap-2 font-serif relative z-10">
-              <span className="w-2 h-2 rounded-full bg-purple-900 animate-pulse"></span>
+            {/* Title - Reduced font size to text-base, removed icon */}
+            <span className="text-slate-800 text-base tracking-tighter flex items-center gap-2 font-serif relative z-10">
               <span><strong>Daily</strong>Rogue</span>
             </span>
 
-            {/* Date - Starts at midpoint and proceeds right */}
-            <div className="absolute left-1/2 text-xs text-slate-600 font-sans leading-relaxed whitespace-nowrap">
+            {/* Date - Centered */}
+            <div className="absolute left-1/2 -translate-x-1/2 text-xs text-slate-600 font-sans leading-relaxed whitespace-nowrap">
                 Monday, Jan. 3rd
             </div>
 
@@ -303,37 +313,49 @@ export default function App() {
             <div className="w-1/2 h-full border-r border-slate-200 bg-slate-50 relative flex flex-col overflow-hidden">
                
                {/* 50% HEIGHT SPACER (Active Item View) */}
-               <div className="h-1/2 w-full flex items-center justify-center border-b border-slate-100 bg-slate-50/50 overflow-hidden relative">
+               {/* REVISION: Container is now relative and neutral, color is handled inside AnimatePresence */}
+               <div className="h-1/2 w-full border-b border-slate-100 overflow-hidden relative bg-slate-50/50">
                   <AnimatePresence mode="wait">
                     {selectedItem ? (
                       <motion.div
                         key={selectedItem.uniqueId || selectedItem.id}
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ 
-                          opacity: 1, 
-                          scale: 1,
-                          y: [0, -4, 0]
-                        }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ 
-                          duration: 0.3,
-                          y: {
-                            duration: 2.5,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                          }
-                        }}
+                        // Background color is applied here with enter animation
+                        className={`absolute inset-0 flex items-center justify-center ${getItemBgColor(selectedItem.id)}`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }} // Very quick fade in
                       >
-                         <Sprite index={selectedItem.id} size={80} bgClass="bg-transparent" />
+                         <motion.div
+                            initial={{ scale: 0.8 }}
+                            animate={{ scale: 1 }}
+                            transition={{ duration: 0.2, delay: 0.05 }} // Slight delay after bg starts
+                         >
+                            <motion.div
+                                animate={{ y: [0, -4, 0] }}
+                                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                            >
+                                <Sprite index={selectedItem.id} size={80} bgClass="bg-transparent" />
+                            </motion.div>
+                         </motion.div>
                       </motion.div>
                     ) : (
-                      <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 opacity-50" />
+                      <motion.div 
+                        key="empty"
+                        className="absolute inset-0 flex items-center justify-center"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-300 opacity-50" />
+                      </motion.div>
                     )}
                   </AnimatePresence>
                </div>
 
                {/* Scrollable Details Area - Starts at 50% mark */}
-               <div className="h-1/2 px-4 py-4 flex flex-col overflow-y-auto no-scrollbar bg-white">
+               {/* REVISION: Reduced padding (pt-2) and title size (text-base) for more bottom space */}
+               <div className="h-1/2 px-4 pt-2 pb-12 flex flex-col overflow-y-auto no-scrollbar bg-white">
                  <AnimatePresence mode="wait">
                    {selectedItem ? (
                      <motion.div 
@@ -344,11 +366,13 @@ export default function App() {
                         transition={{ duration: 0.15 }}
                         className="flex flex-col h-full"
                      >
-                        <h2 className="font-serif font-bold text-lg text-slate-800 leading-tight mb-2 mt-1">
+                        {/* Title changed from text-lg to text-base, margins reduced */}
+                        <h2 className="font-serif font-bold text-base text-slate-800 leading-tight mb-1 mt-1">
                           {selectedItem.name}
                         </h2>
                         
-                        <div className="mb-2">
+                        {/* Margin reduced */}
+                        <div className="mb-1">
                           <TypeBadge type={selectedItem.type} />
                         </div>
 
@@ -358,8 +382,8 @@ export default function App() {
                      </motion.div>
                    ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-300 text-xs text-center px-2">
-                      <p>Select an item.</p>
-                      <p className="text-[10px] mt-1 opacity-70">Double-tap to keep.</p>
+                      <p>Tap the grid.</p>
+                      <p className="mt-1">Tap again to keep.</p>
                     </div>
                    )}
                  </AnimatePresence>
@@ -372,58 +396,29 @@ export default function App() {
                {/* Background */}
                <div className="absolute inset-0 bg-gradient-to-b from-slate-200 to-slate-100" />
 
-               {/* Monster Container - Increased mb-16 to push enemies higher */}
-               <div className="relative z-10 flex items-end justify-center pointer-events-none mb-16">
+               {/* Monster Container - REVISION: Reduced bottom margin to bring enemy down (mb-16 -> mb-4) */}
+               <div className="relative z-10 flex items-end justify-center pointer-events-none mb-4">
                  
-                 {/* Enemy 1 (Left) - Z-INDEX 20 (In front) */}
                  <motion.div
                     animate={{ 
-                      y: [0, -8, 0], 
-                      x: [-2, 2, -2],
-                      rotate: [-1, 1, -1] 
+                      y: [0, -12, 0],
+                      scale: [1, 1.02, 1] 
                     }}
-                    transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut", delay: 0 }}
-                    className="flex flex-col items-center relative -mr-8 z-20"
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} // No delay
+                    className="flex flex-col items-center relative z-10"
                  >
-                   <MonsterSprite row={3} col={1} size={64} />
-                   <div className="w-10 h-2 bg-black/40 rounded-[50%] blur-sm mt-[-4px]" />
+                   {/* Increased size from 72 to 112 */}
+                   <MonsterSprite row={4} col={3} size={112} />
+                   <div className="w-20 h-3 bg-black/40 rounded-[50%] blur-sm mt-[-6px]" />
                  </motion.div>
 
-                 {/* Enemy 2 (Center) - Z-INDEX 10 (Behind) */}
-                 <motion.div
-                    animate={{ 
-                      y: [0, -12, 0], 
-                      x: [3, -3, 3],
-                      rotate: [2, -2, 2] 
-                    }}
-                    transition={{ duration: 4.7, repeat: Infinity, ease: "easeInOut", delay: 1.1 }}
-                    className="flex flex-col items-center relative mb-4 z-10"
-                 >
-                   <MonsterSprite row={4} col={3} size={72} />
-                   <div className="w-12 h-2.5 bg-black/40 rounded-[50%] blur-sm mt-[-4px]" />
-                 </motion.div>
-
-                 {/* Enemy 3 (Right) - Z-INDEX 20 (In front) */}
-                 <motion.div
-                    animate={{ 
-                      y: [0, -6, 0], 
-                      x: [-4, 4, -4],
-                      rotate: [-3, 3, -3] 
-                    }}
-                    transition={{ duration: 3.9, repeat: Infinity, ease: "easeInOut", delay: 2.3 }}
-                    className="flex flex-col items-center relative -ml-8 z-20"
-                 >
-                   <MonsterSprite row={7} col={6} size={64} />
-                   <div className="w-10 h-2 bg-black/40 rounded-[50%] blur-sm mt-[-4px]" />
-                 </motion.div>
-                 
                </div>
 
-               {/* Combat Stats - Updated Font to Serif and adjusted size */}
+               {/* Combat Stats - Reordered to MAG, ARM, HP */}
                <div className="relative z-10 flex gap-4 text-xs font-serif text-slate-500 uppercase tracking-wider mb-6">
                   <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-bold text-slate-700">HP</span>
-                    <span className="text-red-500 font-bold">250</span>
+                    <span className="font-bold text-slate-700">MAG</span>
+                    <span className="text-purple-500 font-bold">15</span>
                   </div>
                   <div className="w-px h-6 bg-slate-300/50" />
                   <div className="flex flex-col items-center gap-0.5">
@@ -432,13 +427,13 @@ export default function App() {
                   </div>
                   <div className="w-px h-6 bg-slate-300/50" />
                   <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-bold text-slate-700">MAG</span>
-                    <span className="text-purple-500 font-bold">15</span>
+                    <span className="font-bold text-slate-700">HP</span>
+                    <span className="text-red-500 font-bold">250</span>
                   </div>
                </div>
 
-               {/* Enemy Loop Section - Label changed to Serif, Removed Uppercase */}
-               <div className="relative z-10 w-full px-4 flex flex-col items-start gap-1">
+               {/* Enemy Loop Section */}
+               <div className="relative z-10 w-full px-4 pb-8 flex flex-col items-start gap-1">
                   <span className="text-[10px] text-slate-500 font-serif font-bold">
                     Enemy Loop:
                   </span>
@@ -452,6 +447,83 @@ export default function App() {
           </main>
         </section>
 
+        {/* --- CENTRAL ACTION BUTTON --- */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto flex items-center justify-center">
+          
+          {/* Rotating Glow Ring */}
+          <AnimatePresence>
+            {keptItems.length === 5 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1, rotate: 360 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ 
+                  opacity: { duration: 0.3 },
+                  scale: { duration: 0.3 },
+                  rotate: { duration: 4, repeat: Infinity, ease: "linear" } 
+                }}
+                className="absolute w-20 h-20 rounded-full bg-gradient-to-tr from-amber-300 via-red-500 to-transparent blur-sm opacity-80"
+              />
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            disabled={keptItems.length < 5}
+            // New "Active" Animation: Slight zoom constant, glow handled by ring behind
+            animate={keptItems.length === 5 ? {
+              scale: 1.1,
+            } : {
+              scale: 1,
+            }}
+            whileHover={keptItems.length === 5 ? { scale: 1.15 } : {}}
+            whileTap={{ scale: 0.9 }}
+            className={`
+              w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors duration-300 relative z-10
+              ${keptItems.length === 5 
+                ? 'bg-gradient-to-b from-red-500 to-red-700 cursor-pointer' 
+                : 'bg-slate-300 cursor-not-allowed'
+              }
+            `}
+            onClick={() => {
+              if (keptItems.length === 5) {
+                // Revert logic: Small delay to allow 'press' animation to register before state clears
+                setTimeout(() => {
+                   setKeptItems([]); 
+                   setSelectedItem(null);
+                }, 150);
+              }
+            }}
+          >
+            <Sword 
+              size={28} 
+              className={`transition-colors duration-300 ${keptItems.length === 5 ? 'text-teal-200' : 'text-slate-600'}`} 
+              strokeWidth={2.5}
+            />
+          </motion.button>
+        </div>
+
+        {/* --- REROLL BUTTON --- */}
+        <div className="absolute top-1/2 left-1/2 translate-x-16 -translate-y-1/2 z-50 pointer-events-auto"> 
+             <motion.button
+                whileTap={{ scale: 0.9, rotate: -45 }}
+                className="w-10 h-10 rounded-full bg-blue-950 text-white flex items-center justify-center shadow-lg border-2 border-slate-700"
+                onClick={rerollItems}
+             >
+                <RefreshCw size={18} />
+             </motion.button>
+        </div>
+        
+        {/* --- FLASK BUTTON (New) --- */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-28 -translate-y-1/2 z-50 pointer-events-auto"> 
+             <motion.button
+                whileTap={{ scale: 0.9, rotate: -45 }}
+                className="w-10 h-10 rounded-full bg-pink-900 text-white flex items-center justify-center shadow-lg border-2 border-slate-700"
+                onClick={() => {}} // Does nothing currently
+             >
+                <FlaskRound size={18} />
+             </motion.button>
+        </div>
+
         {/* --- BOTTOM HALF: INVENTORY --- */}
         <section className="h-1/2 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20 flex flex-col relative overflow-hidden">
           
@@ -459,7 +531,7 @@ export default function App() {
             
             {/* Kept Items Row - Fixed Height, Centered Content, Bottom Border */}
             <div className="h-24 w-full flex-shrink-0 border-b border-slate-100 flex items-center justify-center bg-slate-50/30 z-10">
-              <div className="flex justify-center items-center gap-3">
+              <div className="flex justify-center items-center gap-3 pt-6">
                 {[0, 1, 2, 3, 4].map((slotIndex) => {
                   const item = keptItems[slotIndex];
                   // Check against uniqueId logic for Kept Items
@@ -487,7 +559,10 @@ export default function App() {
                           <Sprite index={item.id} size={40} bgClass={getItemBgColor(item.id)} />
                         </motion.div>
                       ) : (
-                        <div className="w-2 h-2 rounded-full bg-slate-100" />
+                        // Changed from dot to subtle number
+                        <span className="text-slate-300 font-serif font-bold text-lg select-none">
+                          {slotIndex + 1}
+                        </span>
                       )}
                     </div>
                   );

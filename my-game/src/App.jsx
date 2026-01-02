@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, animate, useSpring, useMotionValue, useTransform } from 'framer-motion';
 import { Sword, RefreshCw, FlaskRound, User } from 'lucide-react';
 
 // --- Configuration ---
 const SPRITE_SHEET_SRC = '/icons/items.png';
 const SPRITE_SIZE = 32;
 const SHEET_WIDTH = 352;
-const COLS = SHEET_WIDTH / SPRITE_SIZE;
+const COLS = SHEET_WIDTH / SPRITE_SIZE; // 11 columns
 const SCALE = 1.6; // Default scale for generic sprites
 
 // --- Item Definitions ---
@@ -28,10 +28,18 @@ const ITEM_DEFINITIONS = {
   256: { name: "Multi Arrow", type: "Item" },       // 23/3
   233: { name: "Magic Book", type: "Item" },        // 21/2 
   234: { name: "Holy Book", type: "Item" },         // 21/3
-  146: { name: "Gauntlets", type: "Item" }          // 13/3 
+  146: { name: "Gauntlets", type: "Armor" },        // 13/3 
+  
+  // New Additions
+  122: { name: "Heavy Shield", type: "Armor" },     // 11/1
+  276: { name: "Bread", type: "Food" },             // 25/1
+  277: { name: "Tomato", type: "Food" },            // 25/2
+
+  // Flask
+  210: { name: "Flask", type: "Item" }
 };
 
-const ITEM_POOL = Object.keys(ITEM_DEFINITIONS).map(Number);
+const ITEM_POOL = Object.keys(ITEM_DEFINITIONS).filter(id => id !== "210").map(Number);
 
 // --- Monster Configuration ---
 const MONSTER_SRC = '/icons/monsters.png';
@@ -44,32 +52,28 @@ const ROGUE_SPRITE_SIZE = 32;
 
 // --- Helper Functions ---
 const getItemBgColor = (id) => {
-  // Switched to '100' values for lower contrast/more subtle look
-  if (id === 17 || id === 11) return "bg-sky-100";
-  if (id === 36 || id === 78 || id === 48) return "bg-orange-100";
-  if (id === 102) return "bg-emerald-100";
-  if (id === 115 || id === 118) return "bg-purple-100";
-  return "bg-yellow-100";
+  if (id === 210) return "bg-pink-100"; // Flask
+  if (id === 276 || id === 277) return "bg-orange-200"; // Food
+  if (id === 146 || id === 122) return "bg-slate-300"; // Armor
+  if (id === 17 || id === 11) return "bg-blue-200"; // Swords
+  if (id === 36 || id === 78 || id === 48) return "bg-red-200"; // Heavy
+  if (id === 102) return "bg-emerald-200"; // Bow
+  if (id === 115 || id === 118) return "bg-purple-200"; // Staffs
+  return "bg-amber-200"; // Default
 };
 
 // --- Helper Components ---
 const Sprite = ({ index, bgClass, size = SPRITE_SIZE * SCALE, className = "" }) => {
   const col = index % COLS;
   const row = Math.floor(index / COLS);
-  
   const bgX = -(col * SPRITE_SIZE);
   const bgY = -(row * SPRITE_SIZE);
-
-  // Internal math to map the desired display size to the sprite sheet scale
   const internalScale = size / SPRITE_SIZE;
 
   return (
     <div
       className={`relative rounded-sm overflow-hidden flex-shrink-0 flex items-center justify-center ${bgClass || 'bg-gray-200'} ${className}`}
-      style={{
-        width: `${size}px`,
-        height: `${size}px`,
-      }}
+      style={{ width: `${size}px`, height: `${size}px` }}
     >
       <div
         style={{
@@ -79,7 +83,6 @@ const Sprite = ({ index, bgClass, size = SPRITE_SIZE * SCALE, className = "" }) 
           backgroundPosition: `${bgX * internalScale}px ${bgY * internalScale}px`,
           backgroundSize: `${SHEET_WIDTH * internalScale}px auto`,
           imageRendering: 'pixelated',
-          // UPDATED: 0px blur for pixelated look, 2px offset for tighter shadow, 0.6 opacity for darkness
           filter: 'drop-shadow(0px 2px 0px rgba(0,0,0,0.6))' 
         }}
       />
@@ -87,8 +90,7 @@ const Sprite = ({ index, bgClass, size = SPRITE_SIZE * SCALE, className = "" }) 
   );
 };
 
-// Component for Monster rendering
-const MonsterSprite = ({ row, col, size = 128 }) => {
+const MonsterSprite = ({ row, col, size = 128, isHit }) => {
   const bgX = -(col * SPRITE_SIZE);
   const bgY = -(row * SPRITE_SIZE);
   const internalScale = size / SPRITE_SIZE;
@@ -102,7 +104,9 @@ const MonsterSprite = ({ row, col, size = 128 }) => {
         overflow: 'hidden',
       }}
     >
-      <div
+      <motion.div
+        animate={isHit ? { x: [-5, 5, -5, 5, 0], filter: ["brightness(1)", "brightness(2)", "brightness(1)"] } : {}}
+        transition={{ duration: 0.4 }}
         style={{
           width: '100%',
           height: '100%',
@@ -115,7 +119,6 @@ const MonsterSprite = ({ row, col, size = 128 }) => {
   );
 };
 
-// Component for Rogue rendering
 const RogueSprite = ({ row, col, size = 128 }) => {
   const bgX = -(col * ROGUE_SPRITE_SIZE);
   const bgY = -(row * ROGUE_SPRITE_SIZE);
@@ -155,6 +158,7 @@ const generateItemData = (id) => {
     name = ITEM_DEFINITIONS[id].name;
     type = ITEM_DEFINITIONS[id].type;
   } else {
+    // Fallback random generation
     const suffixes = ["of Ruin", "of Light", "of the Wolf", "of Eternity", "of Silence", ""];
     const prefixes = ["Ancient", "Rusty", "Gilded", "Void", "Astral", "Cursed", "Blessed"];
     const roots = ["Dagger", "Potion", "Relic", "Shield", "Tome", "Gem", "Key"];
@@ -164,7 +168,17 @@ const generateItemData = (id) => {
   
   const rarities = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
   const rarity = rarities[rand(5) % rarities.length];
-  const description = "This is a temporary description. This will have effects and stats later.";
+  
+  let description = "This is a temporary description. This will have effects and stats later.";
+  
+  if (type === "Weapon") {
+    // Check if it's a staff (ID 115 or 118)
+    if (id === 115 || id === 118) {
+        description = "Deals 40 damage to Magic. Deals 10 damage to Armor/Body.";
+    } else {
+        description = "Deals 10 damage to Magic. Deals 20 damage to Armor/Body.";
+    }
+  }
 
   return {
     id,
@@ -183,12 +197,77 @@ const TypeBadge = ({ type }) => {
     Artifact: "bg-violet-100 text-violet-700",
     Material: "bg-amber-100 text-amber-700",
     Item: "bg-yellow-100 text-yellow-800",
+    Food: "bg-orange-100 text-orange-800",
   };
   return (
     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${colors[type] || "bg-gray-100 text-gray-700"}`}>
       {type}
     </span>
   );
+};
+
+// --- VFX Components ---
+const ContinuousBloodParticles = () => {
+    // UPDATED: More particles (20), larger size range, slightly wider spread
+    const particles = Array.from({ length: 20 }).map((_, i) => ({
+      id: i,
+      x: (Math.random() - 0.5) * 80, 
+      y: (Math.random() - 0.5) * 80,
+      scale: Math.random() * 0.8 + 0.5, // Larger particles
+      duration: Math.random() * 1 + 1, // 1-2s duration
+      delay: Math.random() * 2 
+    }));
+  
+    return (
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-50">
+        {particles.map((p) => (
+          <motion.div
+            key={p.id}
+            initial={{ opacity: 0, y: 0, x: 0, scale: 0 }}
+            animate={{ 
+              opacity: [0, 1, 0], 
+              y: [0, 30], // Fall further
+              x: [0, p.x], 
+              scale: [0, p.scale, 0]
+            }}
+            transition={{ 
+                duration: p.duration, 
+                repeat: Infinity, 
+                delay: p.delay,
+                ease: "easeInOut" 
+            }}
+            // UPDATED: Brighter red, slightly larger base size
+            className="absolute w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"
+          />
+        ))}
+      </div>
+    );
+  };
+
+// --- Animated Stats Component ---
+const AnimatedStat = ({ value, colorClass }) => {
+  const displayValue = useMotionValue(value);
+  const rounded = useTransform(displayValue, Math.round);
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    const diff = Math.abs(value - prevValue.current);
+    if (diff === 0) return;
+    
+    // Calculate dynamic duration based on damage amount
+    // Small damage (10) -> ~0.3s
+    // Big damage (40) -> ~0.8s
+    const duration = Math.min(0.8, Math.max(0.3, diff * 0.02));
+
+    animate(displayValue, value, {
+      duration: duration,
+      ease: "circOut"
+    });
+    
+    prevValue.current = value;
+  }, [value, displayValue]);
+
+  return <motion.span className={colorClass}>{rounded}</motion.span>;
 };
 
 export default function App() {
@@ -203,6 +282,15 @@ export default function App() {
   const [rerollCount, setRerollCount] = useState(3);
   const [turnCount, setTurnCount] = useState(5);
 
+  // Enemy Stats State
+  const [enemyStats, setEnemyStats] = useState({ magic: 80, armor: 80, body: 80 });
+  
+  // Animation States
+  const [isBleeding, setIsBleeding] = useState(false);
+  const [isAttacking, setIsAttacking] = useState(false);
+  const [activeItemIndex, setActiveItemIndex] = useState(null);
+  const [monsterIsHit, setMonsterIsHit] = useState(false);
+
   useEffect(() => {
     const items = Array.from({ length: 12 }, () => {
       const randomIndex = Math.floor(Math.random() * ITEM_POOL.length);
@@ -212,6 +300,7 @@ export default function App() {
   }, []);
 
   const handleItemClick = (spriteIndex, gridIndex) => {
+    if (isAttacking) return;
     const newItem = generateItemData(spriteIndex);
     const uniqueId = `grid-${gridIndex}`;
     
@@ -233,6 +322,17 @@ export default function App() {
   };
 
   const handleKeptItemClick = (item, slotIndex) => {
+    if (isAttacking) return;
+
+    if (item.isFlask) {
+      setFlaskCount(prev => prev + 1);
+      setKeptItems(prev => prev.filter((_, i) => i !== slotIndex));
+      if (selectedItem && selectedItem.uniqueId === item.uniqueId) {
+        setSelectedItem(null);
+      }
+      return;
+    }
+
     const uniqueId = `kept-${slotIndex}`;
     if (selectedItem && selectedItem.uniqueId === uniqueId) {
       setKeptItems(prev => prev.filter(k => k.sourceGridIndex !== item.sourceGridIndex));
@@ -243,6 +343,7 @@ export default function App() {
   };
 
   const rerollItems = () => {
+    if (isAttacking) return;
     if (rerollCount > 0) {
       setRerollCount(prev => prev - 1);
       const newItems = Array.from({ length: 12 }, () => {
@@ -254,10 +355,96 @@ export default function App() {
     }
   };
 
+  const handleAttack = async () => {
+    if (keptItems.length < 5 || isAttacking) return;
+
+    setIsAttacking(true);
+    let currentStats = { ...enemyStats };
+    const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+    // SEQUENTIAL DAMAGE LOGIC
+    for (let i = 0; i < keptItems.length; i++) {
+        const item = keptItems[i];
+        
+        // 1. Highlight current item
+        setActiveItemIndex(i);
+
+        // 2. Anticipation/Charge Up (Short pause to let user see which item is acting)
+        await delay(250);
+
+        if (item.type === "Weapon") {
+            // Determine damage stats
+            let magicDmg = 10;
+            let physDmg = 20;
+
+            if (item.id === 115 || item.id === 118) {
+                magicDmg = 40;
+                physDmg = 10;
+            }
+
+            // Calculate impact
+            let damageDealt = 0;
+            if (currentStats.magic > 0) {
+                const prev = currentStats.magic;
+                currentStats.magic = Math.max(0, currentStats.magic - magicDmg);
+                damageDealt = prev - currentStats.magic;
+            } else if (currentStats.armor > 0) {
+                const prev = currentStats.armor;
+                currentStats.armor = Math.max(0, currentStats.armor - physDmg);
+                damageDealt = prev - currentStats.armor;
+            } else {
+                const prev = currentStats.body;
+                currentStats.body = Math.max(0, currentStats.body - physDmg);
+                damageDealt = prev - currentStats.body;
+            }
+
+            // 3. Impact & Monster Reaction
+            if (damageDealt > 0) {
+                setEnemyStats({ ...currentStats }); // Trigger number scroll
+                setMonsterIsHit(true);
+                setTimeout(() => setMonsterIsHit(false), 300);
+
+                if (currentStats.body < 80) setIsBleeding(true);
+
+                // 4. Dynamic Linger based on damage magnitude
+                // We need to wait for the number to visually count down
+                // Small hit (10) = ~500ms total
+                // Big hit (40) = ~1000ms total
+                const waitTime = Math.max(500, damageDealt * 25); 
+                await delay(waitTime);
+            } else {
+                // Miss or no effect? (Shouldn't happen with current logic but safe to handle)
+                await delay(300);
+            }
+        } else {
+            // Non-weapons (e.g. potions or fillers) just flash briefly
+            await delay(400);
+        }
+    }
+
+    // Reset after full sequence
+    await delay(500);
+    setActiveItemIndex(null);
+    setKeptItems([]);
+    setSelectedItem(null);
+    setIsAttacking(false);
+  };
+
   const useFlask = () => {
-    if (flaskCount > 0) {
+    if (isAttacking) return;
+    if (flaskCount > 0 && keptItems.length < 5) {
       setFlaskCount(prev => prev - 1);
-      // Logic for using flask would go here
+      const flaskItem = {
+        id: 210, 
+        name: "Flask",
+        type: "Item",
+        rarity: "Common",
+        description: "Restores health or mana (Placeholder).",
+        isFlask: true,
+        uniqueId: `flask-${Date.now()}`
+      };
+      setKeptItems(prev => [...prev, flaskItem]);
+      setSelectedItem(flaskItem);
     }
   };
 
@@ -315,12 +502,10 @@ export default function App() {
                 initial={{ scale: 0.95, opacity: 0, y: 10 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 10 }}
-                // UPDATED: Matched Settings modal layout (centered flex col)
                 className="w-full bg-white rounded-2xl shadow-2xl p-6 flex flex-col items-center justify-center min-h-[200px]"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="w-full flex-1 flex flex-row items-center">
-                  {/* Left: Rogue Character with Animation */}
                   <div className="w-1/2 flex flex-col items-center justify-center">
                      <motion.div
                         animate={{ 
@@ -330,22 +515,23 @@ export default function App() {
                         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                         className="flex flex-col items-center relative z-10"
                      >
-                       {/* No border, just the sprite and shadow */}
-                       <RogueSprite row={0} col={2} size={96} />
+                       <RogueSprite row={2} col={2} size={96} />
                        <div className="w-14 h-2 bg-black/30 rounded-[50%] blur-[2px] mt-[-2px]" />
                      </motion.div>
-                     <span className="font-serif font-bold text-slate-800 mt-2">The Rogue</span>
                   </div>
 
-                  {/* Right: Blank */}
-                  <div className="w-1/2 h-full">
-                    {/* Intentionally blank as requested */}
+                  <div className="w-1/2 h-full flex flex-row items-center justify-center gap-2">
+                    <div className="w-12 h-12 bg-slate-50 border border-slate-300 rounded-lg flex items-center justify-center shadow-sm">
+                       <span className="text-slate-400 font-serif font-bold text-lg select-none">1</span>
+                    </div>
+                    <div className="w-12 h-12 bg-slate-50 border border-slate-300 rounded-lg flex items-center justify-center shadow-sm">
+                       <span className="text-slate-400 font-serif font-bold text-lg select-none">2</span>
+                    </div>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setShowUserModal(false)}
-                  // UPDATED: Dark purple color matching button, centered at bottom
                   className="mt-6 px-6 py-2 bg-[#2a0a36] text-white rounded-full text-sm font-medium hover:opacity-90 active:scale-95 transition-all"
                 >
                   Close
@@ -378,7 +564,6 @@ export default function App() {
             {/* LEFT: Mini Details */}
             <div className="w-1/2 h-full border-r border-slate-200 bg-slate-50 relative flex flex-col overflow-hidden">
                
-               {/* 50% HEIGHT SPACER (Active Item View) */}
                <div className="h-1/2 w-full border-b border-slate-100 overflow-hidden relative bg-slate-50/50">
                   <AnimatePresence mode="wait">
                     {selectedItem ? (
@@ -418,21 +603,18 @@ export default function App() {
                     )}
                   </AnimatePresence>
 
-                  {/* NEW USER BUTTON POSITION: Top Left Quadrant (Symbol Display), Bottom Left Corner */}
                   <div className="absolute bottom-2 left-2 z-20">
                      <motion.button
                        whileTap={{ scale: 0.9 }}
                        onClick={() => setShowUserModal(true)}
-                       // Darker purple theme: bg-[#2a0a36]
-                       className="w-8 h-8 rounded bg-[#2a0a36] text-white flex items-center justify-center shadow-md hover:opacity-90 transition-opacity"
+                       className="w-10 h-10 rounded bg-[#2a0a36] text-white flex items-center justify-center shadow-md hover:opacity-90 transition-opacity"
                      >
-                       <User size={16} />
+                       <User size={20} />
                      </motion.button>
                   </div>
                </div>
 
-               {/* Details Text Area - Custom parchment background */}
-               <div className="h-1/2 px-4 pt-2 pb-16 flex flex-col overflow-y-auto no-scrollbar bg-[#eaddcf] relative">
+               <div className="h-1/2 px-4 pt-2 pb-16 flex flex-col overflow-y-auto no-scrollbar bg-[#f2e8dc] relative">
                  <AnimatePresence mode="wait">
                    {selectedItem ? (
                      <motion.div 
@@ -454,10 +636,7 @@ export default function App() {
                         </p>
                      </motion.div>
                    ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs text-center px-2">
-                      <p>Tap a symbol on the grid.</p>
-                      <p className="mt-1">Tap again to keep it.</p>
-                    </div>
+                    <div className="flex-1"></div>
                    )}
                  </AnimatePresence>
                </div>
@@ -466,8 +645,13 @@ export default function App() {
             {/* RIGHT: Monster Viewport */}
             <div className="w-1/2 h-full bg-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
                <div className="absolute inset-0 bg-gradient-to-b from-slate-200 to-slate-100" />
+               
                <div className="relative z-10 flex items-end justify-center pointer-events-none mb-4">
+                 {/* UPDATED: Continuous Blood Particles */}
+                 {isBleeding && <ContinuousBloodParticles />}
+
                  <motion.div
+                    // UPDATED: Normal idle animation + Hit Reaction
                     animate={{ 
                       y: [0, -8, 0], 
                       rotate: [0, 2, 0, -2, 0],
@@ -476,26 +660,30 @@ export default function App() {
                     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
                     className="flex flex-col items-center relative z-10"
                  >
-                   {/* Changed to row 4, col 2 */}
-                   <MonsterSprite row={4} col={2} size={112} />
+                   <MonsterSprite row={4} col={2} size={112} isHit={monsterIsHit} />
                    <div className="w-20 h-3 bg-black/40 rounded-[50%] blur-sm mt-[-6px]" />
                  </motion.div>
                </div>
 
-               <div className="relative z-10 flex gap-4 text-xs font-serif text-slate-500 uppercase tracking-wider mb-6">
+               <div className="relative z-10 flex gap-2 text-xs font-serif text-slate-500 tracking-wider mb-6">
+                  {/* Magic Stat */}
                   <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-bold text-slate-700">MAG</span>
-                    <span className="text-purple-500 font-bold">250</span>
+                    <span className="font-bold text-slate-700">Magic</span>
+                    <AnimatedStat value={enemyStats.magic} colorClass="text-purple-600 font-bold text-lg" />
                   </div>
                   <div className="w-px h-6 bg-slate-300/50" />
+                  
+                  {/* Armor Stat */}
                   <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-bold text-slate-700">ARM</span>
-                    <span className="text-blue-500 font-bold">250</span>
+                    <span className="font-bold text-slate-700">Armor</span>
+                    <AnimatedStat value={enemyStats.armor} colorClass="text-blue-600 font-bold text-lg" />
                   </div>
                   <div className="w-px h-6 bg-slate-300/50" />
+                  
+                  {/* Body Stat */}
                   <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-bold text-slate-700">HP</span>
-                    <span className="text-red-500 font-bold">250</span>
+                    <span className="font-bold text-slate-700">Body</span>
+                    <AnimatedStat value={enemyStats.body} colorClass="text-red-600 font-bold text-lg" />
                   </div>
                </div>
 
@@ -515,10 +703,12 @@ export default function App() {
         
         <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto"> 
             <motion.button
-                disabled={flaskCount === 0}
-                whileTap={flaskCount > 0 ? { scale: 0.9, rotate: -45 } : {}}
-                className={`w-10 h-10 rounded-full text-white flex items-center justify-center shadow-lg transition-colors duration-200
-                  ${flaskCount > 0 ? 'bg-pink-900 cursor-pointer' : 'bg-slate-300 cursor-not-allowed text-slate-100'}
+                disabled={flaskCount === 0 || keptItems.length >= 5 || isAttacking}
+                whileTap={flaskCount > 0 && keptItems.length < 5 && !isAttacking ? { scale: 0.9, rotate: -45 } : {}}
+                className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors duration-200
+                  ${flaskCount > 0 && keptItems.length < 5 && !isAttacking
+                    ? 'bg-pink-900 text-white cursor-pointer' 
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
                 `}
                 onClick={useFlask}
             >
@@ -528,7 +718,7 @@ export default function App() {
 
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto flex items-center justify-center">
           <AnimatePresence>
-            {keptItems.length === 5 && (
+            {keptItems.length === 5 && !isAttacking && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 0.4, scale: 1, rotate: 360 }} 
@@ -544,30 +734,21 @@ export default function App() {
           </AnimatePresence>
 
           <motion.button
-            disabled={keptItems.length < 5}
-            animate={keptItems.length === 5 ? { scale: 1.1 } : { scale: 1 }}
-            whileHover={keptItems.length === 5 ? { scale: 1.15 } : {}}
+            disabled={keptItems.length < 5 || isAttacking}
+            animate={keptItems.length === 5 && !isAttacking ? { scale: 1.1 } : { scale: 1 }}
+            whileHover={keptItems.length === 5 && !isAttacking ? { scale: 1.15 } : {}}
             whileTap={{ scale: 0.9 }}
             className={`
               w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors duration-300 relative z-10
-              ${keptItems.length === 5 
-                ? 'bg-gradient-to-b from-red-500 to-red-700 cursor-pointer' 
-                : 'bg-slate-300 cursor-not-allowed'
+              ${keptItems.length === 5 && !isAttacking
+                ? 'bg-gradient-to-b from-red-500 to-red-700 cursor-pointer text-white' 
+                : 'bg-slate-200 cursor-not-allowed text-slate-400'
               }
             `}
-            onClick={() => {
-              if (keptItems.length === 5) {
-                setTimeout(() => {
-                   setKeptItems([]); 
-                   setSelectedItem(null);
-                }, 150);
-              }
-            }}
+            onClick={handleAttack}
           >
             <Sword 
               size={28} 
-              // Changed deactivated color to text-slate-400 (lighter gray)
-              className={`transition-colors duration-300 ${keptItems.length === 5 ? 'text-white' : 'text-slate-400'}`} 
               strokeWidth={2.5}
             />
           </motion.button>
@@ -575,10 +756,12 @@ export default function App() {
 
         <div className="absolute top-1/2 left-3/4 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto"> 
             <motion.button
-                disabled={rerollCount === 0}
-                whileTap={rerollCount > 0 ? { scale: 0.9, rotate: -45 } : {}}
-                className={`w-10 h-10 rounded-full text-white flex items-center justify-center shadow-lg transition-colors duration-200
-                  ${rerollCount > 0 ? 'bg-blue-950 cursor-pointer' : 'bg-slate-300 cursor-not-allowed text-slate-100'}
+                disabled={rerollCount === 0 || isAttacking}
+                whileTap={rerollCount > 0 && !isAttacking ? { scale: 0.9, rotate: -45 } : {}}
+                className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-colors duration-200
+                  ${rerollCount > 0 && !isAttacking
+                    ? 'bg-blue-950 text-white cursor-pointer' 
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'}
                 `}
                 onClick={rerollItems}
             >
@@ -596,25 +779,43 @@ export default function App() {
               <div className="flex justify-center items-center gap-3 pt-6">
                 {[0, 1, 2, 3, 4].map((slotIndex) => {
                   const item = keptItems[slotIndex];
-                  const isSelected = item && selectedItem && selectedItem.uniqueId === `kept-${slotIndex}`;
+                  const isSelected = item && selectedItem && selectedItem.uniqueId === item.uniqueId;
+                  const isActive = activeItemIndex === slotIndex;
                   
-                  // UPDATED: Dark background for empty slots
                   const slotBgClass = item ? getItemBgColor(item.id) : 'bg-slate-800';
                   
                   return (
-                    <div 
-                      key={slotIndex} 
+                    <motion.div 
+                      key={slotIndex}
+                      animate={
+                        isActive 
+                        ? { 
+                            scale: 1.15,
+                            borderColor: "rgba(239, 68, 68, 1)", // red-500
+                            boxShadow: "0 0 0 4px rgba(239, 68, 68, 0.4)"
+                          }
+                        : isSelected
+                          ? {
+                              scale: 1.0,
+                              borderColor: "rgba(13, 148, 136, 1)", // teal-600
+                              boxShadow: "0 0 0 2px rgba(20, 184, 166, 1)" // teal-500
+                          }
+                          : { 
+                              scale: 1,
+                              borderColor: "rgba(51, 65, 85, 1)", // slate-700
+                              boxShadow: "none"
+                          }
+                      }
+                      transition={{ duration: 0.2 }}
                       className={`
-                        w-12 h-12 rounded-lg border shadow-sm flex items-center justify-center relative overflow-hidden transition-all duration-200
-                        ${isSelected 
-                          ? `border-teal-600 ring-2 ring-teal-500 z-10 ${slotBgClass}` 
-                          : `${slotBgClass} border-slate-700`
-                        }
+                        w-12 h-12 rounded-lg border flex items-center justify-center relative overflow-hidden
+                        ${isActive ? 'z-20' : isSelected ? 'z-10' : ''}
+                        ${slotBgClass}
                       `}
                     >
                       {item ? (
                         <motion.div
-                          layoutId={`kept-instance-${item.sourceGridIndex}`}
+                          layoutId={item.isFlask ? undefined : `kept-instance-${item.sourceGridIndex}`}
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
                           className="cursor-pointer w-full h-full flex items-center justify-center"
@@ -627,7 +828,7 @@ export default function App() {
                           {slotIndex + 1}
                         </span>
                       )}
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -644,8 +845,6 @@ export default function App() {
                     <motion.div
                       key={i}
                       layoutId={`grid-item-${i}`}
-                      // UPDATED: Removed padding (p-1) and bg-indigo-200 to make border hug the sprite
-                      // UPDATED: Changed Selection to Teal
                       className={`
                         cursor-pointer rounded-sm relative group transition-all duration-100
                         ${isSelected ? 'ring-2 ring-teal-500 shadow-lg z-10 scale-105' : 'hover:shadow-md'}
@@ -660,7 +859,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* UPDATED: Dynamic stats from state */}
+            {/* Dynamic stats from state */}
             <div className="h-8 flex items-center justify-center gap-4 text-xs text-slate-500 font-mono uppercase tracking-widest select-none flex-shrink-0">
               <span>Flasks: <span className="text-slate-300">{flaskCount}</span></span>
               <span>|</span>

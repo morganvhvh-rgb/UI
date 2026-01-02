@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, animate, useSpring, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, animate, useMotionValue, useTransform } from 'framer-motion';
 import { Sword, RefreshCw, FlaskRound, User } from 'lucide-react';
 
 // --- Configuration ---
@@ -147,6 +147,42 @@ const RogueSprite = ({ row, col, size = 128 }) => {
   );
 };
 
+// --- Formatted Description Component ---
+const FormattedDescription = ({ text }) => {
+  if (!text) return null;
+
+  // Split text by the relevant phrases to check context
+  // Regex looks for patterns like "10 Magic", "10 Armor", "10 Blood"
+  const parts = text.split(/(\d+\s+Magic|\d+\s+Armor|\d+\s+Blood)/g);
+
+  return (
+    <p className="text-xs text-slate-700 font-sans leading-relaxed whitespace-pre-line">
+      {parts.map((part, i) => {
+        // 1. Magic Logic
+        if (part.match(/\d+\s+Magic/)) {
+            const [val, label] = part.split(' ');
+            return <span key={i} className="text-purple-600 font-bold">{val} {label}</span>;
+        }
+
+        // 2. Armor Logic
+        if (part.match(/\d+\s+Armor/)) {
+            const [val, label] = part.split(' ');
+            return <span key={i} className="text-slate-500 font-bold">{val} {label}</span>;
+        }
+
+        // 3. Blood Logic
+        if (part.match(/\d+\s+Blood/)) {
+            const [val, label] = part.split(' ');
+            return <span key={i} className="text-red-600 font-bold">{val} {label}</span>;
+        }
+
+        // Default text
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
+  );
+};
+
 // --- Mock Data Generator ---
 const generateItemData = (id) => {
   const seed = id * 123456;
@@ -174,9 +210,9 @@ const generateItemData = (id) => {
   if (type === "Weapon") {
     // Check if it's a staff (ID 115 or 118)
     if (id === 115 || id === 118) {
-        description = "Deals 40 damage to Magic. Deals 10 damage to Armor/Body.";
+        description = "Attack: 40 Magic, 10 Armor, 10 Blood.\nNo additional effects.";
     } else {
-        description = "Deals 10 damage to Magic. Deals 20 damage to Armor/Body.";
+        description = "Attack: 10 Magic, 20 Armor, 20 Blood.\nNo additional effects.";
     }
   }
 
@@ -213,7 +249,7 @@ const ContinuousBloodParticles = () => {
       id: i,
       x: (Math.random() - 0.5) * 80, 
       y: (Math.random() - 0.5) * 80,
-      scale: Math.random() * 0.8 + 0.5, // Larger particles
+      scale: Math.random() * 0.8 + 0.5, 
       duration: Math.random() * 1 + 1, // 1-2s duration
       delay: Math.random() * 2 
     }));
@@ -225,7 +261,7 @@ const ContinuousBloodParticles = () => {
             key={p.id}
             initial={{ opacity: 0, y: 0, x: 0, scale: 0 }}
             animate={{ 
-              opacity: [0, 1, 0], 
+              opacity: [1, 1, 0], // UPDATED: Stay opaque longer
               y: [0, 30], // Fall further
               x: [0, p.x], 
               scale: [0, p.scale, 0]
@@ -236,8 +272,8 @@ const ContinuousBloodParticles = () => {
                 delay: p.delay,
                 ease: "easeInOut" 
             }}
-            // UPDATED: Brighter red, slightly larger base size
-            className="absolute w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm"
+            // UPDATED: Slightly smaller square particles (w-2 h-2)
+            className="absolute w-2 h-2 bg-red-600 shadow-sm"
           />
         ))}
       </div>
@@ -254,10 +290,8 @@ const AnimatedStat = ({ value, colorClass }) => {
     const diff = Math.abs(value - prevValue.current);
     if (diff === 0) return;
     
-    // Calculate dynamic duration based on damage amount
-    // Small damage (10) -> ~0.3s
-    // Big damage (40) -> ~0.8s
-    const duration = Math.min(0.8, Math.max(0.3, diff * 0.02));
+    // UPDATED: Faster duration calculation
+    const duration = Math.min(0.5, Math.max(0.2, diff * 0.015));
 
     animate(displayValue, value, {
       duration: duration,
@@ -369,8 +403,8 @@ export default function App() {
         // 1. Highlight current item
         setActiveItemIndex(i);
 
-        // 2. Anticipation/Charge Up (Short pause to let user see which item is acting)
-        await delay(250);
+        // 2. Anticipation/Charge Up (Reduced delay for faster flow)
+        await delay(100);
 
         if (item.type === "Weapon") {
             // Determine damage stats
@@ -402,28 +436,24 @@ export default function App() {
             if (damageDealt > 0) {
                 setEnemyStats({ ...currentStats }); // Trigger number scroll
                 setMonsterIsHit(true);
-                setTimeout(() => setMonsterIsHit(false), 300);
+                setTimeout(() => setMonsterIsHit(false), 250);
 
                 if (currentStats.body < 80) setIsBleeding(true);
 
-                // 4. Dynamic Linger based on damage magnitude
-                // We need to wait for the number to visually count down
-                // Small hit (10) = ~500ms total
-                // Big hit (40) = ~1000ms total
-                const waitTime = Math.max(500, damageDealt * 25); 
+                // 4. Dynamic Linger based on damage magnitude (Faster multiplier)
+                const waitTime = Math.max(250, damageDealt * 10); 
                 await delay(waitTime);
             } else {
-                // Miss or no effect? (Shouldn't happen with current logic but safe to handle)
-                await delay(300);
+                await delay(150);
             }
         } else {
             // Non-weapons (e.g. potions or fillers) just flash briefly
-            await delay(400);
+            await delay(150);
         }
     }
 
-    // Reset after full sequence
-    await delay(500);
+    // Reset after full sequence (Faster reset)
+    await delay(300);
     setActiveItemIndex(null);
     setKeptItems([]);
     setSelectedItem(null);
@@ -631,9 +661,8 @@ export default function App() {
                         <div className="mb-1">
                           <TypeBadge type={selectedItem.type} />
                         </div>
-                        <p className="text-xs text-slate-700 font-sans leading-relaxed">
-                          {selectedItem.description}
-                        </p>
+                        {/* UPDATED: Formatted Description */}
+                        <FormattedDescription text={selectedItem.description} />
                      </motion.div>
                    ) : (
                     <div className="flex-1"></div>
@@ -647,7 +676,7 @@ export default function App() {
                <div className="absolute inset-0 bg-gradient-to-b from-slate-200 to-slate-100" />
                
                <div className="relative z-10 flex items-end justify-center pointer-events-none mb-4">
-                 {/* UPDATED: Continuous Blood Particles */}
+                 {/* UPDATED: Continuous Blood Particles (Square) */}
                  {isBleeding && <ContinuousBloodParticles />}
 
                  <motion.div
@@ -667,22 +696,22 @@ export default function App() {
 
                <div className="relative z-10 flex gap-2 text-xs font-serif text-slate-500 tracking-wider mb-6">
                   {/* Magic Stat */}
-                  <div className="flex flex-col items-center gap-0.5">
+                  <div className="flex flex-col items-center gap-0">
                     <span className="font-bold text-slate-700">Magic</span>
                     <AnimatedStat value={enemyStats.magic} colorClass="text-purple-600 font-bold text-lg" />
                   </div>
                   <div className="w-px h-6 bg-slate-300/50" />
                   
-                  {/* Armor Stat */}
-                  <div className="flex flex-col items-center gap-0.5">
+                  {/* Armor Stat - UPDATED COLOR (Silver/Slate) */}
+                  <div className="flex flex-col items-center gap-0">
                     <span className="font-bold text-slate-700">Armor</span>
-                    <AnimatedStat value={enemyStats.armor} colorClass="text-blue-600 font-bold text-lg" />
+                    <AnimatedStat value={enemyStats.armor} colorClass="text-slate-500 font-bold text-lg" />
                   </div>
                   <div className="w-px h-6 bg-slate-300/50" />
                   
-                  {/* Body Stat */}
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-bold text-slate-700">Body</span>
+                  {/* Body/Blood Stat - UPDATED Label and Spacing */}
+                  <div className="flex flex-col items-center gap-0">
+                    <span className="font-bold text-slate-700">Blood</span>
                     <AnimatedStat value={enemyStats.body} colorClass="text-red-600 font-bold text-lg" />
                   </div>
                </div>

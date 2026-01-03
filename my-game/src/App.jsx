@@ -4,7 +4,7 @@ import { Sword, RefreshCw, FlaskRound, User, Heart } from 'lucide-react';
 
 // --- Configuration ---
 const SPRITE_SHEET_SRC = '/icons/items.png';
-const MONSTER_SRC = '/icons/monsters.png'; // Added here for easy access
+const MONSTER_SRC = '/icons/monsters.png'; 
 const SPRITE_SIZE = 32;
 const SHEET_WIDTH = 352;
 const MONSTER_SHEET_WIDTH = 384;
@@ -74,13 +74,13 @@ const Sprite = ({ index, bgClass, size = SPRITE_SIZE * SCALE, className = "" }) 
   const internalScale = size / SPRITE_SIZE;
 
   if (index === 900) {
-      // Hired Help: Use monsters.png, Row 1 (index 0), Col 2 (index 1)
+      // Hired Help: Use monsters.png, Row 1, Col 2
       sheetSrc = MONSTER_SRC;
       sheetWidth = MONSTER_SHEET_WIDTH;
-      // Col 1 (2nd column)
-      bgX = -(1 * SPRITE_SIZE); 
-      // Row 0 (1st row)
-      bgY = -(0 * SPRITE_SIZE);
+      // Col 2 (3rd column)
+      bgX = -(2 * SPRITE_SIZE); 
+      // Row 1 (2nd row)
+      bgY = -(1 * SPRITE_SIZE);
   } else {
       // Standard Item Logic
       const col = index % COLS;
@@ -391,19 +391,6 @@ export default function App() {
     setGridItems(items);
   }, []);
 
-  // Sync selectedItem with keptItems to ensure buffs show immediately
-  useEffect(() => {
-    if (keptItems.length > 0 && selectedItem && !selectedItem.uniqueId.startsWith('kept-')) {
-       // Check if the last added item matches the currently selected grid item
-       const lastKept = keptItems[keptItems.length - 1];
-       if (lastKept.sourceGridIndex === selectedItem.sourceGridIndex) {
-           // Switch selection to the kept version immediately
-           const keptId = `kept-${keptItems.length - 1}`;
-           setSelectedItem({ ...lastKept, uniqueId: keptId });
-       }
-    }
-  }, [keptItems, selectedItem]);
-
   // UPDATED: Function to calculate buffed stats for description preview
   const getEffectiveDescription = (item) => {
     if (!item) return "";
@@ -464,13 +451,19 @@ export default function App() {
       const isAlreadyKept = keptItems.find(k => k.sourceGridIndex === gridIndex);
       
       if (!isAlreadyKept) {
-        const itemToKeep = { ...newItem, sourceGridIndex: gridIndex };
+        // Prevent equipping if full
+        if (keptItems.length >= 5) return;
+
+        // Add instanceId to track item independently of grid index later
+        const instanceId = `${Date.now()}-${Math.random()}`;
+        const itemToKeep = { ...newItem, sourceGridIndex: gridIndex, instanceId };
         
-        if (keptItems.length < 5) {
-          setKeptItems(prev => [...prev, itemToKeep]);
-        } else {
-          setKeptItems(prev => [...prev.slice(1), itemToKeep]);
-        }
+        const nextIndex = keptItems.length;
+        setKeptItems(prev => [...prev, itemToKeep]);
+
+        // IMMEDIATELY update selection to the 'kept' version to show buffs
+        const keptId = `kept-${nextIndex}`;
+        setSelectedItem({ ...itemToKeep, uniqueId: keptId });
       }
     } else {
       setSelectedItem({ ...newItem, uniqueId });
@@ -502,15 +495,24 @@ export default function App() {
     if (isAttacking) return;
     if (rerollCount > 0) {
       setRerollCount(prev => prev - 1);
+      
+      // Get indices of items that are currently kept
+      const keptIndices = new Set(keptItems.map(k => k.sourceGridIndex));
+
       // Filter the pool
       const availablePool = ITEM_POOL.filter(id => !removedItemIds.includes(id));
-      
       const poolToUse = availablePool.length > 0 ? availablePool : ITEM_POOL;
 
-      const newItems = Array.from({ length: 12 }, () => {
+      const newItems = gridItems.map((currentItem, index) => {
+        // If this grid slot is kept, preserve the item
+        if (keptIndices.has(index)) {
+             return currentItem;
+        }
+        // Otherwise generate a new one
         const randomIndex = Math.floor(Math.random() * poolToUse.length);
         return poolToUse[randomIndex];
       });
+      
       setGridItems(newItems);
       setSelectedItem(null);
     }
@@ -697,7 +699,8 @@ export default function App() {
         rarity: "Common",
         description: "Restores health or mana (Placeholder).",
         isFlask: true,
-        uniqueId: `flask-${Date.now()}`
+        uniqueId: `flask-${Date.now()}`,
+        instanceId: `flask-${Date.now()}`
       };
       setKeptItems(prev => [...prev, flaskItem]);
       setSelectedItem(flaskItem);
@@ -1103,7 +1106,7 @@ export default function App() {
                     >
                       {item ? (
                         <motion.div
-                          layoutId={item.isFlask ? undefined : `kept-instance-${item.sourceGridIndex}`}
+                          layoutId={item.isFlask ? undefined : `kept-instance-${item.instanceId || item.sourceGridIndex}`}
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
                           className="cursor-pointer w-full h-full flex items-center justify-center"

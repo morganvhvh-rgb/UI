@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, animate, useMotionValue, useTransform } from 'framer-motion';
-import { Sword, RefreshCw, FlaskRound, User } from 'lucide-react';
+import { Sword, RefreshCw, FlaskRound, User, Heart } from 'lucide-react';
 
 // --- Configuration ---
 const SPRITE_SHEET_SRC = '/icons/items.png';
+const MONSTER_SRC = '/icons/monsters.png'; // Added here for easy access
 const SPRITE_SIZE = 32;
 const SHEET_WIDTH = 352;
+const MONSTER_SHEET_WIDTH = 384;
 const COLS = SHEET_WIDTH / SPRITE_SIZE; // 11 columns
 const SCALE = 1.6; // Default scale for generic sprites
 
@@ -34,16 +36,15 @@ const ITEM_DEFINITIONS = {
   122: { name: "Heavy Shield", type: "Armor" },     // 11/1
   276: { name: "Bread", type: "Food" },             // 25/1
   277: { name: "Tomato", type: "Food" },            // 25/2
+  
+  // Special
+  900: { name: "Hired Help", type: "Monster" },     // Special ID for Hired Help
 
   // Flask
   210: { name: "Flask", type: "Item" }
 };
 
 const ITEM_POOL = Object.keys(ITEM_DEFINITIONS).filter(id => id !== "210").map(Number);
-
-// --- Monster Configuration ---
-const MONSTER_SRC = '/icons/monsters.png';
-const MONSTER_SHEET_WIDTH = 384;
 
 // --- Rogue Configuration ---
 const ROGUE_SRC = '/icons/rogues.png';
@@ -59,16 +60,34 @@ const getItemBgColor = (id) => {
   if (id === 36 || id === 78 || id === 48) return "bg-red-200"; // Heavy
   if (id === 102) return "bg-emerald-200"; // Bow
   if (id === 115 || id === 118) return "bg-purple-200"; // Staffs
+  if (id === 233 || id === 234) return "bg-indigo-200"; // Books
+  if (id === 900) return "bg-slate-800 text-white"; // Hired Help (Black theme)
   return "bg-amber-200"; // Default
 };
 
 // --- Helper Components ---
 const Sprite = ({ index, bgClass, size = SPRITE_SIZE * SCALE, className = "" }) => {
-  const col = index % COLS;
-  const row = Math.floor(index / COLS);
-  const bgX = -(col * SPRITE_SIZE);
-  const bgY = -(row * SPRITE_SIZE);
+  let sheetSrc = SPRITE_SHEET_SRC;
+  let sheetWidth = SHEET_WIDTH;
+  let bgX, bgY;
+  
   const internalScale = size / SPRITE_SIZE;
+
+  if (index === 900) {
+      // Hired Help: Use monsters.png, Row 1 (index 0), Col 2 (index 1)
+      sheetSrc = MONSTER_SRC;
+      sheetWidth = MONSTER_SHEET_WIDTH;
+      // Col 1 (2nd column)
+      bgX = -(1 * SPRITE_SIZE); 
+      // Row 0 (1st row)
+      bgY = -(0 * SPRITE_SIZE);
+  } else {
+      // Standard Item Logic
+      const col = index % COLS;
+      const row = Math.floor(index / COLS);
+      bgX = -(col * SPRITE_SIZE);
+      bgY = -(row * SPRITE_SIZE);
+  }
 
   return (
     <div
@@ -79,9 +98,9 @@ const Sprite = ({ index, bgClass, size = SPRITE_SIZE * SCALE, className = "" }) 
         style={{
           width: '100%',
           height: '100%',
-          backgroundImage: `url(${SPRITE_SHEET_SRC})`,
+          backgroundImage: `url(${sheetSrc})`,
           backgroundPosition: `${bgX * internalScale}px ${bgY * internalScale}px`,
-          backgroundSize: `${SHEET_WIDTH * internalScale}px auto`,
+          backgroundSize: `${sheetWidth * internalScale}px auto`,
           imageRendering: 'pixelated',
           filter: 'drop-shadow(0px 2px 0px rgba(0,0,0,0.6))' 
         }}
@@ -105,7 +124,10 @@ const MonsterSprite = ({ row, col, size = 128, isHit }) => {
       }}
     >
       <motion.div
-        animate={isHit ? { x: [-5, 5, -5, 5, 0], filter: ["brightness(1)", "brightness(2)", "brightness(1)"] } : {}}
+        animate={isHit 
+          ? { x: [-5, 5, -5, 5, 0], filter: ["brightness(1)", "brightness(2)", "brightness(1)"] } 
+          : { x: 0, filter: "brightness(1)" }
+        }
         transition={{ duration: 0.4 }}
         style={{
           width: '100%',
@@ -151,32 +173,45 @@ const RogueSprite = ({ row, col, size = 128 }) => {
 const FormattedDescription = ({ text }) => {
   if (!text) return null;
 
-  // Split text by the relevant phrases to check context
-  // Regex looks for patterns like "10 Magic", "10 Armor", "10 Blood"
+  // New logic for Attack: X/X/X pattern
+  const attackRegex = /Attack:\s+(\d+)\/(\d+)\/(\d+)/;
+  const match = text.match(attackRegex);
+
+  if (match) {
+    const [fullStr, m, a, b] = match;
+    const parts = text.split(fullStr);
+    return (
+       <p className="text-xs text-slate-700 font-sans leading-relaxed whitespace-pre-line">
+         {parts[0]}
+         <span className="font-bold font-serif text-slate-600">Attack: </span>
+         <span className="text-purple-600 font-bold font-serif">{m}</span>
+         <span className="text-slate-400 font-bold mx-0.5">/</span>
+         <span className="text-slate-500 font-bold font-serif">{a}</span>
+         <span className="text-slate-400 font-bold mx-0.5">/</span>
+         <span className="text-red-600 font-bold font-serif">{b}</span>
+         {parts[1]}
+       </p>
+    );
+  }
+
+  // Fallback for other patterns (keeping legacy support just in case)
   const parts = text.split(/(\d+\s+Magic|\d+\s+Armor|\d+\s+Blood)/g);
 
   return (
     <p className="text-xs text-slate-700 font-sans leading-relaxed whitespace-pre-line">
       {parts.map((part, i) => {
-        // 1. Magic Logic
         if (part.match(/\d+\s+Magic/)) {
             const [val, label] = part.split(' ');
-            return <span key={i} className="text-purple-600 font-bold">{val} {label}</span>;
+            return <span key={i} className="text-purple-600 font-bold font-serif">{val} {label}</span>;
         }
-
-        // 2. Armor Logic
         if (part.match(/\d+\s+Armor/)) {
             const [val, label] = part.split(' ');
-            return <span key={i} className="text-slate-500 font-bold">{val} {label}</span>;
+            return <span key={i} className="text-slate-500 font-bold font-serif">{val} {label}</span>;
         }
-
-        // 3. Blood Logic
         if (part.match(/\d+\s+Blood/)) {
             const [val, label] = part.split(' ');
-            return <span key={i} className="text-red-600 font-bold">{val} {label}</span>;
+            return <span key={i} className="text-red-600 font-bold font-serif">{val} {label}</span>;
         }
-
-        // Default text
         return <span key={i}>{part}</span>;
       })}
     </p>
@@ -209,11 +244,31 @@ const generateItemData = (id) => {
   
   if (type === "Weapon") {
     // Check if it's a staff (ID 115 or 118)
-    if (id === 115 || id === 118) {
-        description = "Attack: 40 Magic, 10 Armor, 10 Blood.\nNo additional effects.";
+    if (id === 115) {
+        description = "Attack: 80/40/40\nNo additional effects.";
+    } else if (id === 118) {
+        description = "Attack: 40/20/20\nNo additional effects.";
     } else {
-        description = "Attack: 10 Magic, 20 Armor, 20 Blood.\nNo additional effects.";
+        description = "Attack: 10/20/20\nNo additional effects.";
     }
+  }
+
+  // Magic Book Description
+  if (id === 233) {
+      description = "Doubles next Magic Staff damage.\nRemoves all books from pool.";
+  }
+  // Holy Book Description
+  if (id === 234) {
+      description = "Doubles next Holy Staff damage.";
+  }
+  // Sword Ring 1 Description
+  if (id === 192) {
+      description = "+10 Armor attack for all following swords.";
+  }
+
+  // Hired Help
+  if (id === 900) {
+      description = "Attack: 60/60/60\nRequires 2 equipped food symbols.";
   }
 
   return {
@@ -234,6 +289,7 @@ const TypeBadge = ({ type }) => {
     Material: "bg-amber-100 text-amber-700",
     Item: "bg-yellow-100 text-yellow-800",
     Food: "bg-orange-100 text-orange-800",
+    Monster: "bg-slate-800 text-slate-100",
   };
   return (
     <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${colors[type] || "bg-gray-100 text-gray-700"}`}>
@@ -244,13 +300,12 @@ const TypeBadge = ({ type }) => {
 
 // --- VFX Components ---
 const ContinuousBloodParticles = () => {
-    // UPDATED: More particles (20), larger size range, slightly wider spread
     const particles = Array.from({ length: 20 }).map((_, i) => ({
       id: i,
       x: (Math.random() - 0.5) * 80, 
       y: (Math.random() - 0.5) * 80,
       scale: Math.random() * 0.8 + 0.5, 
-      duration: Math.random() * 1 + 1, // 1-2s duration
+      duration: Math.random() * 1 + 1, 
       delay: Math.random() * 2 
     }));
   
@@ -261,8 +316,8 @@ const ContinuousBloodParticles = () => {
             key={p.id}
             initial={{ opacity: 0, y: 0, x: 0, scale: 0 }}
             animate={{ 
-              opacity: [1, 1, 0], // UPDATED: Stay opaque longer
-              y: [0, 30], // Fall further
+              opacity: [1, 1, 0], 
+              y: [0, 30], 
               x: [0, p.x], 
               scale: [0, p.scale, 0]
             }}
@@ -272,7 +327,6 @@ const ContinuousBloodParticles = () => {
                 delay: p.delay,
                 ease: "easeInOut" 
             }}
-            // UPDATED: Slightly smaller square particles (w-2 h-2)
             className="absolute w-2 h-2 bg-red-600 shadow-sm"
           />
         ))}
@@ -290,7 +344,6 @@ const AnimatedStat = ({ value, colorClass }) => {
     const diff = Math.abs(value - prevValue.current);
     if (diff === 0) return;
     
-    // UPDATED: Faster duration calculation
     const duration = Math.min(0.5, Math.max(0.2, diff * 0.015));
 
     animate(displayValue, value, {
@@ -315,15 +368,20 @@ export default function App() {
   const [flaskCount, setFlaskCount] = useState(3);
   const [rerollCount, setRerollCount] = useState(3);
   const [turnCount, setTurnCount] = useState(5);
+  const [playerHealth, setPlayerHealth] = useState(3);
+  const [removedItemIds, setRemovedItemIds] = useState([]); // Track removed/banned items
 
   // Enemy Stats State
-  const [enemyStats, setEnemyStats] = useState({ magic: 80, armor: 80, body: 80 });
+  const [enemyStats, setEnemyStats] = useState({ magic: 160, armor: 80, body: 120 });
+  const [enemyActionIndex, setEnemyActionIndex] = useState(0); // 0: Attack, 1: Wait, 2: Heal Armor
   
   // Animation States
   const [isBleeding, setIsBleeding] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
   const [activeItemIndex, setActiveItemIndex] = useState(null);
   const [monsterIsHit, setMonsterIsHit] = useState(false);
+  const [enemyIsAttacking, setEnemyIsAttacking] = useState(false);
+  const [playerIsHit, setPlayerIsHit] = useState(false);
 
   useEffect(() => {
     const items = Array.from({ length: 12 }, () => {
@@ -332,6 +390,70 @@ export default function App() {
     });
     setGridItems(items);
   }, []);
+
+  // Sync selectedItem with keptItems to ensure buffs show immediately
+  useEffect(() => {
+    if (keptItems.length > 0 && selectedItem && !selectedItem.uniqueId.startsWith('kept-')) {
+       // Check if the last added item matches the currently selected grid item
+       const lastKept = keptItems[keptItems.length - 1];
+       if (lastKept.sourceGridIndex === selectedItem.sourceGridIndex) {
+           // Switch selection to the kept version immediately
+           const keptId = `kept-${keptItems.length - 1}`;
+           setSelectedItem({ ...lastKept, uniqueId: keptId });
+       }
+    }
+  }, [keptItems, selectedItem]);
+
+  // UPDATED: Function to calculate buffed stats for description preview
+  const getEffectiveDescription = (item) => {
+    if (!item) return "";
+    
+    // Check if it's a kept item by looking at the uniqueId format
+    if (item.uniqueId && item.uniqueId.startsWith('kept-')) {
+         const slotIndex = parseInt(item.uniqueId.split('-')[1]);
+         
+         if (slotIndex >= 0 && slotIndex < keptItems.length) {
+             const currentItem = keptItems[slotIndex]; 
+
+             if (currentItem.id !== item.id) return item.description;
+             
+             let desc = item.description;
+
+             // 1. Staff Synergy (Previous Item)
+             if (slotIndex > 0) {
+                const prevItem = keptItems[slotIndex - 1];
+                const isMagicSynergy = prevItem.id === 233 && currentItem.id === 115;
+                const isHolySynergy = prevItem.id === 234 && currentItem.id === 118;
+
+                if (isMagicSynergy || isHolySynergy) {
+                    desc = desc.replace(/Attack:\s+(\d+)\/(\d+)\/(\d+)/, (match, m, a, b) => {
+                        return `Attack: ${parseInt(m)*2}/${parseInt(a)*2}/${parseInt(b)*2}`;
+                    });
+                }
+             }
+
+             // 2. Sword Ring Synergy (All Previous)
+             // Check if current item is a Sword (17 or 11)
+             if (currentItem.id === 17 || currentItem.id === 11) {
+                 let ringBuff = 0;
+                 for (let i = 0; i < slotIndex; i++) {
+                     if (keptItems[i].id === 192) {
+                         ringBuff += 10;
+                     }
+                 }
+                 
+                 if (ringBuff > 0) {
+                     desc = desc.replace(/Attack:\s+(\d+)\/(\d+)\/(\d+)/, (match, m, a, b) => {
+                         return `Attack: ${m}/${parseInt(a) + ringBuff}/${b}`;
+                     });
+                 }
+             }
+
+             return desc;
+         }
+    }
+    return item.description;
+  };
 
   const handleItemClick = (spriteIndex, gridIndex) => {
     if (isAttacking) return;
@@ -380,9 +502,14 @@ export default function App() {
     if (isAttacking) return;
     if (rerollCount > 0) {
       setRerollCount(prev => prev - 1);
+      // Filter the pool
+      const availablePool = ITEM_POOL.filter(id => !removedItemIds.includes(id));
+      
+      const poolToUse = availablePool.length > 0 ? availablePool : ITEM_POOL;
+
       const newItems = Array.from({ length: 12 }, () => {
-        const randomIndex = Math.floor(Math.random() * ITEM_POOL.length);
-        return ITEM_POOL[randomIndex];
+        const randomIndex = Math.floor(Math.random() * poolToUse.length);
+        return poolToUse[randomIndex];
       });
       setGridItems(newItems);
       setSelectedItem(null);
@@ -392,9 +519,16 @@ export default function App() {
   const handleAttack = async () => {
     if (keptItems.length < 5 || isAttacking) return;
 
+    setSelectedItem(null);
     setIsAttacking(true);
     let currentStats = { ...enemyStats };
     const delay = (ms) => new Promise(res => setTimeout(res, ms));
+    
+    // Synergy flags
+    let boostNextMagicStaff = false;
+    let boostNextHolyStaff = false;
+    let booksFound = false;
+    let swordArmorBuff = 0; // Cumulative Armor Attack buff for swords
 
     // SEQUENTIAL DAMAGE LOGIC
     for (let i = 0; i < keptItems.length; i++) {
@@ -403,18 +537,74 @@ export default function App() {
         // 1. Highlight current item
         setActiveItemIndex(i);
 
-        // 2. Anticipation/Charge Up (Reduced delay for faster flow)
+        // 2. Anticipation/Charge Up
         await delay(100);
 
-        if (item.type === "Weapon") {
-            // Determine damage stats
-            let magicDmg = 10;
-            let physDmg = 20;
+        let currentDamageMultiplier = 1;
+        
+        // Check for Synergy Books
+        if (item.id === 233) {
+            booksFound = true;
+        }
 
-            if (item.id === 115 || item.id === 118) {
-                magicDmg = 40;
-                physDmg = 10;
+        // Check for Sword Ring
+        if (item.id === 192) {
+            swordArmorBuff += 10;
+        }
+
+        // Damage Calculation
+        let magicDmg = 0;
+        let armorDmg = 0;
+        let bodyDmg = 0;
+        let triggersAttack = false;
+
+        if (item.type === "Weapon") {
+            triggersAttack = true;
+            // Default Base
+            magicDmg = 10;
+            armorDmg = 20;
+            bodyDmg = 20;
+
+            // Magic Staff (115)
+            if (item.id === 115) {
+                magicDmg = 80;
+                armorDmg = 40;
+                bodyDmg = 40;
+                if (boostNextMagicStaff) currentDamageMultiplier = 2;
             }
+            // Holy Staff (118)
+            else if (item.id === 118) {
+                magicDmg = 40;
+                armorDmg = 20;
+                bodyDmg = 20;
+                if (boostNextHolyStaff) currentDamageMultiplier = 2;
+            }
+            // Swords (17, 11) - Apply Sword Ring Buff
+            else if (item.id === 17 || item.id === 11) {
+                magicDmg = 10;
+                armorDmg = 20 + swordArmorBuff; // Apply Buff
+                bodyDmg = 20;
+            }
+        } 
+        
+        // Hired Help Logic
+        else if (item.id === 900) {
+            // Count food in kept items
+            const foodCount = keptItems.filter(k => k.type === "Food").length;
+            if (foodCount >= 2) {
+                triggersAttack = true;
+                magicDmg = 60;
+                armorDmg = 60;
+                bodyDmg = 60;
+            }
+        }
+
+
+        // Apply Multiplier and Deal Damage
+        if (triggersAttack) {
+            magicDmg *= currentDamageMultiplier;
+            armorDmg *= currentDamageMultiplier;
+            bodyDmg *= currentDamageMultiplier;
 
             // Calculate impact
             let damageDealt = 0;
@@ -424,39 +614,75 @@ export default function App() {
                 damageDealt = prev - currentStats.magic;
             } else if (currentStats.armor > 0) {
                 const prev = currentStats.armor;
-                currentStats.armor = Math.max(0, currentStats.armor - physDmg);
+                currentStats.armor = Math.max(0, currentStats.armor - armorDmg);
                 damageDealt = prev - currentStats.armor;
             } else {
                 const prev = currentStats.body;
-                currentStats.body = Math.max(0, currentStats.body - physDmg);
+                currentStats.body = Math.max(0, currentStats.body - bodyDmg);
                 damageDealt = prev - currentStats.body;
             }
 
             // 3. Impact & Monster Reaction
             if (damageDealt > 0) {
-                setEnemyStats({ ...currentStats }); // Trigger number scroll
+                setEnemyStats({ ...currentStats }); 
                 setMonsterIsHit(true);
                 setTimeout(() => setMonsterIsHit(false), 250);
 
                 if (currentStats.body < 80) setIsBleeding(true);
 
-                // 4. Dynamic Linger based on damage magnitude (Faster multiplier)
                 const waitTime = Math.max(250, damageDealt * 10); 
                 await delay(waitTime);
             } else {
                 await delay(150);
             }
         } else {
-            // Non-weapons (e.g. potions or fillers) just flash briefly
+            // Non-triggering item
             await delay(150);
         }
+        
+        // Set flag for NEXT item.
+        boostNextMagicStaff = (item.id === 233);
+        boostNextHolyStaff = (item.id === 234);
     }
 
-    // Reset after full sequence (Faster reset)
+    // Reset after full sequence
     await delay(300);
     setActiveItemIndex(null);
     setKeptItems([]);
     setSelectedItem(null);
+    
+    if (booksFound) {
+        setRemovedItemIds(prev => {
+            const newSet = new Set(prev);
+            newSet.add(233);
+            newSet.add(234);
+            return Array.from(newSet);
+        });
+    }
+
+    // --- Enemy Turn Logic ---
+    const action = enemyActionIndex % 3;
+    
+    if (action === 0) {
+        setEnemyIsAttacking(true); 
+        await delay(400); 
+        
+        setEnemyIsAttacking(false);
+        setPlayerIsHit(true); 
+        
+        await delay(400); 
+        setPlayerHealth(prev => Math.max(0, prev - 1)); 
+        setPlayerIsHit(false);
+
+        await delay(200);
+    } else if (action === 1) {
+        await delay(200);
+    } else if (action === 2) {
+        setEnemyStats(prev => ({ ...prev, armor: 80 }));
+        await delay(200);
+    }
+    
+    setEnemyActionIndex(prev => (prev + 1) % 3);
     setIsAttacking(false);
   };
 
@@ -633,15 +859,32 @@ export default function App() {
                     )}
                   </AnimatePresence>
 
-                  <div className="absolute bottom-2 left-2 z-20">
+                  <motion.div 
+                    className="absolute bottom-2 left-2 z-20 flex items-end gap-2"
+                    animate={playerIsHit ? { x: [-3, 3, -3, 3, 0] } : { x: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
                      <motion.button
                        whileTap={{ scale: 0.9 }}
                        onClick={() => setShowUserModal(true)}
-                       className="w-10 h-10 rounded bg-[#2a0a36] text-white flex items-center justify-center shadow-md hover:opacity-90 transition-opacity"
+                       className={`w-10 h-10 rounded text-white flex items-center justify-center shadow-md transition-colors duration-200 ${playerIsHit ? 'bg-red-600' : 'bg-[#2a0a36] hover:opacity-90'}`}
                      >
                        <User size={20} />
                      </motion.button>
-                  </div>
+                     <div className="flex gap-1 mb-1">
+                        {[0, 1, 2].map(i => (
+                          <Heart 
+                             key={i} 
+                             size={12} 
+                             className={
+                               i < playerHealth 
+                                 ? (playerIsHit ? "text-red-600 fill-red-600" : "text-[#2a0a36] fill-[#2a0a36]") 
+                                 : "text-slate-300 fill-slate-300"
+                             }
+                          />
+                        ))}
+                     </div>
+                  </motion.div>
                </div>
 
                <div className="h-1/2 px-4 pt-2 pb-16 flex flex-col overflow-y-auto no-scrollbar bg-[#f2e8dc] relative">
@@ -661,8 +904,8 @@ export default function App() {
                         <div className="mb-1">
                           <TypeBadge type={selectedItem.type} />
                         </div>
-                        {/* UPDATED: Formatted Description */}
-                        <FormattedDescription text={selectedItem.description} />
+                        {/* UPDATED: Formatted Description using the new helper */}
+                        <FormattedDescription text={getEffectiveDescription(selectedItem)} />
                      </motion.div>
                    ) : (
                     <div className="flex-1"></div>
@@ -680,13 +923,18 @@ export default function App() {
                  {isBleeding && <ContinuousBloodParticles />}
 
                  <motion.div
-                    // UPDATED: Normal idle animation + Hit Reaction
-                    animate={{ 
-                      y: [0, -8, 0], 
-                      rotate: [0, 2, 0, -2, 0],
-                      scale: [1, 1.02, 1] 
-                    }}
-                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                    // UPDATED: Normal idle animation + Hit Reaction + Attack Zoom
+                    animate={
+                      enemyIsAttacking 
+                      ? { scale: 1.4, y: 10, filter: "brightness(1.2)" } 
+                      : { 
+                          y: [0, -8, 0], 
+                          rotate: [0, 2, 0, -2, 0],
+                          scale: [1, 1.02, 1],
+                          filter: "brightness(1)"
+                        }
+                    }
+                    transition={enemyIsAttacking ? { duration: 0.2 } : { duration: 5, repeat: Infinity, ease: "easeInOut" }}
                     className="flex flex-col items-center relative z-10"
                  >
                    <MonsterSprite row={4} col={2} size={112} isHit={monsterIsHit} />
@@ -720,9 +968,19 @@ export default function App() {
                   <span className="text-[10px] text-slate-500 font-serif font-bold">
                     Enemy Loop:
                   </span>
-                  <p className="text-xs text-slate-600 font-sans leading-relaxed">
-                    Do nothing, Attack for 5-10, Half heal.
-                  </p>
+                  <div className="flex flex-wrap text-xs text-slate-600 font-sans leading-relaxed">
+                     <span className={enemyActionIndex % 3 === 0 ? "text-slate-900 font-bold" : "text-slate-400"}>
+                        Attack once
+                     </span>
+                     <span className="mx-1 text-slate-300">/</span>
+                     <span className={enemyActionIndex % 3 === 1 ? "text-slate-900 font-bold" : "text-slate-400"}>
+                        Do nothing
+                     </span>
+                     <span className="mx-1 text-slate-300">/</span>
+                     <span className={enemyActionIndex % 3 === 2 ? "text-slate-900 font-bold" : "text-slate-400"}>
+                        Restore Armor
+                     </span>
+                  </div>
                </div>
             </div>
           </main>
@@ -819,9 +1077,10 @@ export default function App() {
                       animate={
                         isActive 
                         ? { 
-                            scale: 1.15,
-                            borderColor: "rgba(239, 68, 68, 1)", // red-500
-                            boxShadow: "0 0 0 4px rgba(239, 68, 68, 0.4)"
+                            scale: 1.15, // Zoom when active
+                            // Removed red border and shadow as requested
+                            borderColor: "rgba(51, 65, 85, 1)", // Default slate-700
+                            boxShadow: "none"
                           }
                         : isSelected
                           ? {

@@ -274,6 +274,10 @@ const generateItemData = (id) => {
   if (id === 192) {
       description = "+10 Armor attack for all following swords.";
   }
+  // Gauntlets Description
+  if (id === 146) {
+      description = "+10 Armor attack for all following heavy weapons.";
+  }
   // Poison Arrow Description
   if (id === 253) {
       description = "Next Bow deals +5 damage and inflicts poison.";
@@ -498,20 +502,31 @@ export default function App() {
                 }
              }
 
-             // 2. Sword Ring Synergy (All Previous)
+             // 2. Sword Ring and Gauntlets Synergy (All Previous)
+             let totalArmorBuff = 0;
+
+             // Sword Ring Synergy (17: Big Sword, 11: Fast Sword)
              if (currentItem.id === 17 || currentItem.id === 11) {
-                 let ringBuff = 0;
                  for (let i = 0; i < slotIndex; i++) {
                      if (keptItems[i].id === 192) {
-                         ringBuff += 10;
+                         totalArmorBuff += 10;
                      }
                  }
-                 
-                 if (ringBuff > 0) {
-                     desc = desc.replace(/Attack:\s+(\d+)\/(\d+)\/(\d+)/, (match, m, a, b) => {
-                         return `Attack: ${m}/${parseInt(a) + ringBuff}/${b}`;
-                     });
+             }
+             
+             // Gauntlets Synergy (17: Big Sword, 36: Big Axe, 48: Big Hammer)
+             if (currentItem.id === 17 || currentItem.id === 36 || currentItem.id === 48) {
+                for (let i = 0; i < slotIndex; i++) {
+                     if (keptItems[i].id === 146) {
+                         totalArmorBuff += 10;
+                     }
                  }
+             }
+             
+             if (totalArmorBuff > 0) {
+                 desc = desc.replace(/Attack:\s+(\d+)\/(\d+)\/(\d+)/, (match, m, a, b) => {
+                     return `Attack: ${m}/${parseInt(a) + totalArmorBuff}/${b}`;
+                 });
              }
 
             // 3. Poison Arrow Synergy (Bow)
@@ -608,12 +623,36 @@ export default function App() {
       
       const poolToUse = availablePool.length > 0 ? availablePool : ITEM_POOL;
 
-      const newItems = Array.from({ length: 12 }, () => {
-        const randomIndex = Math.floor(Math.random() * poolToUse.length);
-        return poolToUse[randomIndex];
+      const keptIndices = keptItems.map(k => k.sourceGridIndex);
+
+      setGridItems(prevItems => {
+        return prevItems.map((item, index) => {
+           // If the item at this index is currently kept, preserve it
+           if (keptIndices.includes(index)) {
+             return item;
+           }
+           // Otherwise, roll a new item
+           const randomIndex = Math.floor(Math.random() * poolToUse.length);
+           return poolToUse[randomIndex];
+        });
       });
-      setGridItems(newItems);
-      setSelectedItem(null);
+
+      // FIX: Only clear selected item if it's NOT a kept item
+      if (selectedItem) {
+          const isKeptInstance = selectedItem.uniqueId.startsWith('kept-');
+          let isKeptGridItem = false;
+
+          if (selectedItem.uniqueId.startsWith('grid-')) {
+             const gridIndex = parseInt(selectedItem.uniqueId.split('-')[1]);
+             if (keptIndices.includes(gridIndex)) {
+                 isKeptGridItem = true;
+             }
+          }
+          
+          if (!isKeptInstance && !isKeptGridItem) {
+              setSelectedItem(null);
+          }
+      }
     }
   };
 
@@ -639,6 +678,7 @@ export default function App() {
     let shieldFound = false; // For Heavy Shield
     let blockEnemyAction = false; // Flag to block enemy logic
     let swordArmorBuff = 0; 
+    let gauntletBuff = 0;
 
     // SEQUENTIAL DAMAGE LOGIC
     for (let i = 0; i < keptItems.length; i++) {
@@ -656,6 +696,7 @@ export default function App() {
         // Check for Synergy Books/Arrows/Shields
         if (item.id === 233) booksFound = true;
         if (item.id === 192) swordArmorBuff += 10;
+        if (item.id === 146) gauntletBuff += 10;
         if (item.id === 253) boostNextBowPoison = true; 
         if (item.id === 256) {
              boostNextBowMulti = true;
@@ -705,7 +746,14 @@ export default function App() {
             // Swords (17, 11) - Apply Sword Ring Buff
             else if (item.id === 17 || item.id === 11) {
                 magicDmg = 10;
-                armorDmg = 20 + swordArmorBuff; // Apply Buff
+                armorDmg = 20 + swordArmorBuff; // Apply Sword Ring Buff
+                if (item.id === 17) armorDmg += gauntletBuff; // Apply Gauntlet Buff (stacks)
+                bodyDmg = 20;
+            }
+            // Big Axe (36) and Big Hammer (48) - Apply Gauntlet Buff
+            else if (item.id === 36 || item.id === 48) {
+                magicDmg = 10;
+                armorDmg = 20 + gauntletBuff;
                 bodyDmg = 20;
             }
             // Bow (102)
@@ -925,15 +973,10 @@ export default function App() {
                 <div className="w-full flex-1 flex flex-row items-center">
                   <div className="w-1/2 flex flex-col items-center justify-center">
                      <motion.div
-                        animate={{ 
-                          y: [0, -6, 0], 
-                          scale: [1, 1.05, 1] 
-                        }}
-                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                         className="flex flex-col items-center relative z-10"
                      >
                        <RogueSprite row={2} col={2} size={96} />
-                       <div className="w-14 h-2 bg-black/30 rounded-[50%] blur-[2px] mt-[-2px]" />
+                       {/* Shadow Removed */}
                      </motion.div>
                   </div>
 
@@ -1077,8 +1120,10 @@ export default function App() {
             </div>
 
             {/* RIGHT: Monster Viewport */}
-            <div className="w-1/2 h-full bg-slate-100 relative flex flex-col items-center justify-center overflow-hidden">
-               <div className="absolute inset-0 bg-gradient-to-b from-slate-200 to-slate-100" />
+            <div 
+               className="w-1/2 h-full relative flex flex-col items-center justify-center overflow-hidden"
+               style={{ background: 'linear-gradient(to bottom, #cbd5e1 60%, #dccbcb 60%)' }}
+            >
                
                <div className="relative z-10 flex items-end justify-center pointer-events-none mb-4">
                  {/* VFX Layers */}
@@ -1086,63 +1131,58 @@ export default function App() {
                  {isPoisoned && <ContinuousPoisonParticles />}
 
                  <motion.div
-                    // UPDATED: Normal idle animation + Hit Reaction + Attack Zoom + Blocked Visual
+                    // UPDATED: Removed idle loops (y, rotate), kept reaction animations
                     animate={
                       enemyIsAttacking 
                       ? { scale: 1.4, y: 10, filter: "brightness(1.2)" } 
                       : { 
-                          y: [0, -8, 0], 
-                          rotate: [0, 2, 0, -2, 0],
-                          scale: [1, 1.02, 1],
+                          y: 0, 
+                          rotate: 0,
+                          scale: 1,
                           filter: monsterIsBlocked ? "grayscale(100%) opacity(0.8)" : "brightness(1)"
                         }
                     }
-                    transition={enemyIsAttacking ? { duration: 0.2 } : { duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                    transition={{ duration: 0.2 }}
                     className="flex flex-col items-center relative z-10"
                  >
                    <MonsterSprite row={4} col={2} size={112} isHit={monsterIsHit} isBlocked={monsterIsBlocked} />
-                   <div className="w-20 h-3 bg-black/40 rounded-[50%] blur-sm mt-[-6px]" />
+                   {/* Shadow Removed */}
                  </motion.div>
                </div>
-
-               <div className="relative z-10 flex gap-2 text-xs font-serif text-slate-500 tracking-wider mb-6">
+               
+               {/* UPDATED: Stats Container Card - Dark Theme */}
+               <div className="w-full max-w-[280px] bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-700 shadow-xl p-3 grid grid-cols-3 divide-x divide-neutral-700 mb-6 z-10">
                   {/* Magic Stat */}
-                  <div className="flex flex-col items-center gap-0">
-                    <span className="font-bold text-slate-700">Magic</span>
-                    <AnimatedStat value={enemyStats.magic} colorClass="text-purple-600 font-bold text-lg" />
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">Magic</span>
+                    <AnimatedStat value={enemyStats.magic} colorClass="text-fuchsia-400 font-bold text-xl font-serif leading-none" />
                   </div>
-                  <div className="w-px h-6 bg-slate-300/50" />
                   
                   {/* Armor Stat */}
-                  <div className="flex flex-col items-center gap-0">
-                    <span className="font-bold text-slate-700">Armor</span>
-                    <AnimatedStat value={enemyStats.armor} colorClass="text-slate-500 font-bold text-lg" />
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">Armor</span>
+                    <AnimatedStat value={enemyStats.armor} colorClass="text-slate-200 font-bold text-xl font-serif leading-none" />
                   </div>
-                  <div className="w-px h-6 bg-slate-300/50" />
                   
                   {/* Body/Blood Stat */}
-                  <div className="flex flex-col items-center gap-0">
-                    <span className="font-bold text-slate-700">Blood</span>
-                    <AnimatedStat value={enemyStats.body} colorClass="text-red-600 font-bold text-lg" />
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <span className="text-[9px] font-bold text-white uppercase tracking-wider">Health</span>
+                    <AnimatedStat value={enemyStats.body} colorClass="text-red-500 font-bold text-xl font-serif leading-none" />
                   </div>
                </div>
 
-               <div className="relative z-10 w-full px-4 pb-8 flex flex-col items-start gap-1">
-                  <span className="text-[10px] text-slate-500 font-serif font-bold">
-                    Enemy Loop:
-                  </span>
-                  <div className="flex flex-wrap text-xs text-slate-600 font-sans leading-relaxed">
-                     <span className={enemyActionIndex % 3 === 0 ? "text-slate-900 font-bold" : "text-slate-400"}>
-                        Attack once
-                     </span>
-                     <span className="mx-1 text-slate-300">/</span>
-                     <span className={enemyActionIndex % 3 === 1 ? "text-slate-900 font-bold" : "text-slate-400"}>
-                        Do nothing
-                     </span>
-                     <span className="mx-1 text-slate-300">/</span>
-                     <span className={enemyActionIndex % 3 === 2 ? "text-slate-900 font-bold" : "text-slate-400"}>
-                        Restore Armor
-                     </span>
+               <div className="relative z-10 w-full px-4 pb-8 flex flex-col items-center gap-1">
+                  <div className="w-full max-w-[280px] bg-white/60 backdrop-blur-md rounded-xl border border-white/40 shadow-sm flex flex-col items-center overflow-hidden">
+                    <div className="w-full bg-slate-800 py-1 flex items-center justify-center border-b border-white/20">
+                        <span className="text-xs font-bold text-slate-100 font-serif tracking-wide">Next:</span>
+                    </div>
+                    <div className="p-3 w-full flex items-center justify-center">
+                        <p className="text-xs text-slate-700 font-sans leading-relaxed text-center font-medium">
+                            {enemyActionIndex % 3 === 0 && "Attack once"}
+                            {enemyActionIndex % 3 === 1 && "Do nothing"}
+                            {enemyActionIndex % 3 === 2 && "Restore Armor"}
+                        </p>
+                    </div>
                   </div>
                </div>
             </div>
@@ -1313,8 +1353,6 @@ export default function App() {
             {/* Dynamic stats from state */}
             <div className="h-8 flex items-center justify-center gap-4 text-xs text-slate-500 font-mono uppercase tracking-widest select-none flex-shrink-0">
               <span>Flasks: <span className="text-slate-300">{flaskCount}</span></span>
-              <span>|</span>
-              <span>Turns: <span className="text-slate-300">{turnCount}</span></span>
               <span>|</span>
               <span>Rerolls: <span className="text-slate-300">{rerollCount}</span></span>
             </div>

@@ -466,7 +466,8 @@ export default function App() {
     if (keptItems.length > 0 && selectedItem && !selectedItem.uniqueId.startsWith('kept-')) {
        // Check if the last added item matches the currently selected grid item
        const lastKept = keptItems[keptItems.length - 1];
-       if (lastKept.sourceGridIndex === selectedItem.sourceGridIndex) {
+       // Check if lastKept actually HAS a source grid index (i.e. not a flask/consumable without grid origin)
+       if (lastKept.sourceGridIndex !== undefined && lastKept.sourceGridIndex === selectedItem.sourceGridIndex) {
            // Switch selection to the kept version immediately
            const keptId = `kept-${keptItems.length - 1}`;
            setSelectedItem({ ...lastKept, uniqueId: keptId });
@@ -589,7 +590,8 @@ export default function App() {
         }
       }
     } else {
-      setSelectedItem({ ...newItem, uniqueId });
+      // Include sourceGridIndex so the useEffect can correctly identify this item later
+      setSelectedItem({ ...newItem, uniqueId, sourceGridIndex: gridIndex });
     }
   };
 
@@ -1143,7 +1145,7 @@ export default function App() {
                         }
                     }
                     transition={{ duration: 0.2 }}
-                    className="flex flex-col items-center relative z-10"
+                    className="flex flex-col items-center relative z-10 translate-y-6"
                  >
                    <MonsterSprite row={4} col={2} size={112} isHit={monsterIsHit} isBlocked={monsterIsBlocked} />
                    {/* Shadow Removed */}
@@ -1151,7 +1153,7 @@ export default function App() {
                </div>
                
                {/* UPDATED: Stats Container Card - Dark Theme */}
-               <div className="w-full max-w-[280px] bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-700 shadow-xl p-3 grid grid-cols-3 divide-x divide-neutral-700 mb-6 z-10">
+               <div className="w-full max-w-[280px] bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-700 shadow-xl py-2 px-3 grid grid-cols-3 divide-x divide-neutral-700 mb-6 z-10">
                   {/* Magic Stat */}
                   <div className="flex flex-col items-center justify-center gap-1">
                     <span className="text-[9px] font-bold text-white uppercase tracking-wider">Magic</span>

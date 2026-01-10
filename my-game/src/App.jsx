@@ -88,7 +88,13 @@ const ITEM_REGISTRY = {
     description: "+10 Armor attack for all following swords.",
     synergy: { type: 'PASSIVE_BUFF', targetTag: 'sword', stat: 'a', value: 10 }
   },
-  187: { name: "Sword Ring 2", type: "Item", bg: "Default", description: "+10 Armor attack for all following swords.", synergy: { type: 'PASSIVE_BUFF', targetTag: 'sword', stat: 'a', value: 10 }}, // Assumed duplicate logic
+  
+  // Poison Ring
+  187: { 
+    name: "Poison Ring", type: "Item", bg: "Default", 
+    description: "All equipped symbols will deal 2x damage to a poisoned enemy.", 
+    synergy: { type: 'GLOBAL_CONDITIONAL_MULTIPLIER', condition: 'ENEMY_POISONED', multiplier: 2 }
+  },
   
   146: { 
     name: "Gauntlets", type: "Armor", bg: "Armor",
@@ -144,7 +150,7 @@ const ITEM_REGISTRY = {
   }
 };
 
-const ITEM_POOL_IDS = Object.keys(ITEM_REGISTRY).filter(id => id !== "210" && id !== "900").map(Number);
+const ITEM_POOL_IDS = Object.keys(ITEM_REGISTRY).filter(id => id !== "210").map(Number);
 
 // =============================================================================
 // 3. COMBAT ENGINE (Logic Layer)
@@ -278,17 +284,6 @@ const calculateItemOutput = (itemData, previousItems) => {
   // C. Special Conditions (Hired Help)
   if (def.condition && def.condition.type === 'COUNT_TAG') {
       const count = previousItems.filter(i => ITEM_REGISTRY[i.id]?.tags?.includes(def.condition.tag)).length;
-      // Note: This check only looks at *previous* items. 
-      // User requirement: "Requires 2 equipped food symbols."
-      // This implies checking the whole kept array, not just previous.
-      // We'll assume the helper calculates display stats correctly, but for validation we might need the full array.
-      // For simplicity in this display helper, we assume condition met if logic requires strict order, 
-      // but for Hired Help specifically, we might need to pass the whole set.
-      // Let's patch: Hired Help is a bit unique. 
-      const totalFood = [...previousItems].filter(i => ITEM_REGISTRY[i.id]?.tags?.includes('food')).length;
-      // We can't see "future" items here easily without passing them. 
-      // For now, we assume the condition passes for display purposes if not strict.
-      // Actually, let's just leave stats raw and handle the "0 damage if failed" in the execution phase.
   }
 
   return {
@@ -304,7 +299,6 @@ const calculateItemOutput = (itemData, previousItems) => {
 };
 
 const generateRandomItem = (id) => {
-    // Generate a consistent random-looking item based on ID or random if fallback
     const def = ITEM_REGISTRY[id];
     if (def) return { ...def, id };
     
@@ -528,7 +522,8 @@ export default function App() {
     if (keptItems.length < 5 || animState.isAttacking) return;
     
     setSelectedItem(null);
-    setAnimState(s => ({ ...s, isAttacking: true, isPoisoned: false, monsterIsBlocked: false }));
+    // UPDATED: Removed isPoisoned: false from here to allow persistence
+    setAnimState(s => ({ ...s, isAttacking: true, monsterIsBlocked: false }));
     
     const delay = ms => new Promise(r => setTimeout(r, ms));
     
@@ -538,6 +533,14 @@ export default function App() {
         itemsToRemove: new Set()
     };
 
+    // Check for Poison Ring (ID 187) presence globally
+    const hasPoisonRing = keptItems.some(k => k.id === 187);
+    
+    // Local tracking. We start with the existing persistent poison state.
+    // If persistent state is true, we consider the target already poisoned for multipliers.
+    // Note: The visual state (animState.isPoisoned) acts as the source of truth for "Enemy is Poisoned".
+    let isTargetPoisoned = animState.isPoisoned; 
+
     // 1. Player Turn
     for (let i = 0; i < keptItems.length; i++) {
         const item = keptItems[i];
@@ -545,8 +548,6 @@ export default function App() {
         await delay(100);
 
         // --- ENGINE CALL ---
-        // We pass the subset of items [0...i] to replay logic up to this point
-        // This ensures the synergy engine knows exactly what happened before.
         const output = calculateItemOutput(item, keptItems.slice(0, i));
         
         // Hired Help Special Check (Needs full array context)
@@ -567,22 +568,28 @@ export default function App() {
 
         // Deal Damage
         if (output.canAttack) {
+            // Apply Poison Ring Multiplier
+            let currentItemMultiplier = 1;
+            if (hasPoisonRing && isTargetPoisoned) {
+                currentItemMultiplier = 2;
+            }
+
             for (let hit = 0; hit < output.hits; hit++) {
                 let damageDealt = 0;
                 
                 // Damage Waterfall
                 if (currentEnemy.magic > 0) {
-                    const dmg = output.damage.m;
+                    const dmg = output.damage.m * currentItemMultiplier;
                     const prev = currentEnemy.magic;
                     currentEnemy.magic = Math.max(0, currentEnemy.magic - dmg);
                     damageDealt = prev - currentEnemy.magic;
                 } else if (currentEnemy.armor > 0) {
-                    const dmg = output.damage.a;
+                    const dmg = output.damage.a * currentItemMultiplier;
                     const prev = currentEnemy.armor;
                     currentEnemy.armor = Math.max(0, currentEnemy.armor - dmg);
                     damageDealt = prev - currentEnemy.armor;
                 } else {
-                    const dmg = output.damage.b;
+                    const dmg = output.damage.b * currentItemMultiplier;
                     const prev = currentEnemy.body;
                     currentEnemy.body = Math.max(0, currentEnemy.body - dmg);
                     damageDealt = prev - currentEnemy.body;
@@ -594,7 +601,12 @@ export default function App() {
                     setTimeout(() => setAnimState(s => ({ ...s, monsterIsHit: false })), 250);
                     
                     if (currentEnemy.body < 80) setAnimState(s => ({ ...s, isBleeding: true }));
-                    if (output.effects.includes('poison')) setAnimState(s => ({ ...s, isPoisoned: true }));
+                    
+                    // Logic update for poison
+                    if (output.effects.includes('poison')) {
+                        setAnimState(s => ({ ...s, isPoisoned: true }));
+                        isTargetPoisoned = true; 
+                    }
                     
                     const wait = output.hits > 1 ? 150 : Math.max(250, damageDealt * 10);
                     await delay(wait);
@@ -744,17 +756,11 @@ export default function App() {
             </div>
 
             {/* RIGHT PANEL: MONSTER */}
-            <div className="w-1/2 h-full flex flex-col relative overflow-hidden">
-               {/* Floating Stats */}
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[280px] bg-neutral-900/90 backdrop-blur-sm rounded-xl border border-neutral-700 shadow-xl py-2 px-3 grid grid-cols-3 divide-x divide-neutral-700 z-30">
-                  <div className="flex flex-col items-center gap-1"><span className="text-[9px] font-bold text-white uppercase tracking-wider">Magic</span><AnimatedStat value={enemy.magic} colorClass="text-fuchsia-400 font-bold text-xl font-serif leading-none" /></div>
-                  <div className="flex flex-col items-center gap-1"><span className="text-[9px] font-bold text-white uppercase tracking-wider">Armor</span><AnimatedStat value={enemy.armor} colorClass="text-slate-200 font-bold text-xl font-serif leading-none" /></div>
-                  <div className="flex flex-col items-center gap-1"><span className="text-[9px] font-bold text-white uppercase tracking-wider">Health</span><AnimatedStat value={enemy.body} colorClass="text-red-500 font-bold text-xl font-serif leading-none" /></div>
-               </div>
-
+            <div className="w-1/2 h-full flex flex-col relative overflow-hidden bg-[#354f46]">
+               
                {/* Monster Visual */}
-               <div className="h-1/2 w-full bg-slate-300 relative flex flex-col items-center justify-center overflow-hidden border-b border-slate-400/20">
-                   <div className="absolute inset-0 bg-gradient-to-b from-slate-200 to-slate-300 pointer-events-none" />
+               <div className="h-1/2 w-full relative flex flex-col items-center justify-center overflow-hidden border-b border-white/5">
+                   <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-black/10 pointer-events-none" />
                    <div className="relative z-10 flex items-center justify-center pointer-events-none mb-4">
                      {animState.isBleeding && (
                         <div className="absolute inset-0 flex items-center justify-center z-50">
@@ -786,18 +792,33 @@ export default function App() {
                    </div>
                </div>
 
-               {/* Enemy Intent */}
-               <div className="h-1/2 w-full bg-[#dccbcb] flex items-center justify-center relative z-0">
-                  <div className="w-full max-w-[280px] bg-white/60 backdrop-blur-md rounded-xl border border-white/40 shadow-sm flex flex-col items-center overflow-hidden">
-                    <div className="w-full bg-slate-800 py-1 flex items-center justify-center border-b border-white/20">
-                        <span className="text-xs font-bold text-slate-100 font-serif tracking-wide">Next:</span>
+               {/* UPDATED: UNIFIED BATTLE HUD (Stats + Actions) */}
+               <div className="h-1/2 w-full flex items-center justify-center relative z-0">
+                  <div className="w-full max-w-[280px] bg-neutral-900/90 backdrop-blur-md rounded-xl border border-neutral-700 shadow-2xl flex flex-col overflow-hidden">
+                    
+                    {/* TOP: Stats */}
+                    <div className="grid grid-cols-3 divide-x divide-neutral-800 border-b border-neutral-800 bg-neutral-900/50 py-2">
+                        <div className="flex flex-col items-center gap-1"><span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">Magic</span><AnimatedStat value={enemy.magic} colorClass="text-fuchsia-400 font-bold text-xl font-serif leading-none" /></div>
+                        <div className="flex flex-col items-center gap-1"><span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">Armor</span><AnimatedStat value={enemy.armor} colorClass="text-slate-200 font-bold text-xl font-serif leading-none" /></div>
+                        <div className="flex flex-col items-center gap-1"><span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">Health</span><AnimatedStat value={enemy.body} colorClass="text-red-500 font-bold text-xl font-serif leading-none" /></div>
                     </div>
-                    <div className="p-3 w-full flex items-center justify-center">
-                        <p className="text-xs text-slate-700 font-sans leading-relaxed text-center font-medium">
-                            {enemyActionIndex % 3 === 0 && "Attack once"}
-                            {enemyActionIndex % 3 === 1 && "Do nothing"}
-                            {enemyActionIndex % 3 === 2 && "Restore Armor"}
-                        </p>
+
+                    {/* MIDDLE: Header */}
+                    <div className="w-full bg-neutral-950/50 py-1 flex items-center justify-center border-b border-neutral-800">
+                        <span className="text-[10px] font-bold text-neutral-400 font-serif tracking-widest uppercase">Action Pool</span>
+                    </div>
+
+                    {/* BOTTOM: Actions */}
+                    <div className="p-3 w-full flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                        <span className={`text-xs font-sans leading-relaxed text-center ${enemyActionIndex % 3 === 0 ? "font-bold text-emerald-400" : "text-neutral-600"}`}>
+                            Attack
+                        </span>
+                        <span className={`text-xs font-sans leading-relaxed text-center ${enemyActionIndex % 3 === 1 ? "font-bold text-emerald-400" : "text-neutral-600"}`}>
+                            Skip
+                        </span>
+                        <span className={`text-xs font-sans leading-relaxed text-center ${enemyActionIndex % 3 === 2 ? "font-bold text-emerald-400" : "text-neutral-600"}`}>
+                            Restore Armor
+                        </span>
                     </div>
                   </div>
                </div>

@@ -1,0 +1,184 @@
+:root {
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color: #000;
+  background: #fff;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  display: grid;
+  place-items: center;
+}
+
+button {
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible {
+  z-index: 1;
+  outline: 2px dashed #000;
+  outline-offset: -6px;
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.25;
+}
+
+.viewport {
+  display: grid;
+  grid-template-rows: 176px minmax(0, 1fr) 72px;
+  width: min(100vw, 430px);
+  height: min(100dvh, 740px);
+  border: 2px solid #000;
+  background: #fff;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  border-bottom: 2px solid #000;
+}
+
+.section {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border-right: 1px solid #000;
+  border-bottom: 1px solid #000;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.section:nth-child(3n) {
+  border-right: 0;
+}
+
+.section:nth-child(n + 4) {
+  border-bottom: 0;
+}
+
+.section.is-active {
+  color: #fff;
+  background: #000;
+}
+
+.sprite {
+  --sprite-column: 0;
+  --sprite-row: 0;
+  --sprite-scale: 4;
+  width: calc(16px * var(--sprite-scale));
+  height: calc(16px * var(--sprite-scale));
+  background-image: url("/characters.png");
+  background-position: calc(-16px * var(--sprite-column) * var(--sprite-scale))
+    calc(-16px * var(--sprite-row) * var(--sprite-scale));
+  background-size: calc(320px * var(--sprite-scale))
+    calc(48px * var(--sprite-scale));
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.section.is-active .sprite {
+  filter: grayscale(1) contrast(1.35);
+}
+
+.stage {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+.stage-content {
+  text-align: center;
+}
+
+.stage-content.is-entering {
+  animation: enter 100ms linear;
+}
+
+.stage p {
+  margin: 0;
+}
+
+.section-label {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.state-label {
+  margin-top: 8px !important;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 2px solid #000;
+}
+
+.control {
+  min-width: 0;
+  border-right: 1px solid #000;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.control:last-child {
+  border-right: 0;
+}
+
+.control-primary {
+  color: #fff;
+  background: #000;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+@media (max-height: 620px) {
+  .viewport {
+    grid-template-rows: 144px minmax(0, 1fr) 64px;
+  }
+
+  .sprite {
+    --sprite-scale: 3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-content.is-entering {
+    animation: none;
+  }
+}

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>game0</title>
+  </head>
+  <body>
+    <main class="viewport" aria-label="Wireframe">
+      <nav class="section-grid" aria-label="Sections">
+        <button
+          class="section is-active"
+          type="button"
+          data-section="0"
+          aria-label="Section 1"
+        >
+          <span class="sprite" aria-hidden="true"></span>
+        </button>
+        <button
+          class="section"
+          type="button"
+          data-section="1"
+          aria-label="Section 2"
+        >
+          02
+        </button>
+        <button
+          class="section"
+          type="button"
+          data-section="2"
+          aria-label="Section 3"
+        >
+          03
+        </button>
+        <button
+          class="section"
+          type="button"
+          data-section="3"
+          aria-label="Section 4"
+        >
+          04
+        </button>
+        <button
+          class="section"
+          type="button"
+          data-section="4"
+          aria-label="Section 5"
+        >
+          05
+        </button>
+        <button
+          class="section"
+          type="button"
+          data-section="5"
+          aria-label="Section 6"
+        >
+          06
+        </button>
+      </nav>
+
+      <section class="stage" aria-live="polite">
+        <div class="stage-content">
+          <p class="section-label">SECTION 01</p>
+          <p class="state-label">STATE 00</p>
+        </div>
+      </section>
+
+      <footer class="controls">
+        <button class="control" type="button" data-back disabled>BACK</button>
+        <button class="control control-primary" type="button" data-action>
+          ACTION
+        </button>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

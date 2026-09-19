@@ -1,4 +1,5 @@
 import {
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -8,6 +9,7 @@ import { Sprite } from './sprites/Sprite';
 
 const ICON_COUNT = 40;
 const SLOT_HEIGHT = 54;
+const INITIAL_ICON = 20;
 const ICONS = Array.from({ length: ICON_COUNT }, (_, index) => index + 1);
 
 type MouseDrag = {
@@ -22,12 +24,31 @@ export function App() {
   const animationFrameRef = useRef<number | null>(null);
   const mouseDragRef = useRef<MouseDrag | null>(null);
   const suppressClickRef = useRef(false);
-  const [focusedIcon, setFocusedIcon] = useState(7);
+  const focusedIconRef = useRef(INITIAL_ICON);
+  const [focusedIcon, setFocusedIcon] = useState(INITIAL_ICON);
+
+  useLayoutEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const alignRail = () => {
+      const endSpace = Math.max((rail.clientHeight - SLOT_HEIGHT) / 2, 0);
+      rail.style.paddingBlock = `${endSpace}px`;
+      rail.scrollTop = (focusedIconRef.current - 1) * SLOT_HEIGHT;
+    };
+
+    alignRail();
+    const resizeObserver = new ResizeObserver(alignRail);
+    resizeObserver.observe(rail);
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   function updateFocusedIcon(rail: HTMLDivElement) {
-    const center = rail.scrollTop + rail.clientHeight / 2;
-    const index = Math.round((center - SLOT_HEIGHT / 2) / SLOT_HEIGHT);
-    setFocusedIcon(Math.min(Math.max(index + 1, 1), ICON_COUNT));
+    const index = Math.round(rail.scrollTop / SLOT_HEIGHT);
+    const nextIcon = Math.min(Math.max(index + 1, 1), ICON_COUNT);
+    focusedIconRef.current = nextIcon;
+    setFocusedIcon(nextIcon);
   }
 
   function handleScroll(event: UIEvent<HTMLDivElement>) {
@@ -43,6 +64,7 @@ export function App() {
   function centerIcon(spriteNumber: number) {
     if (suppressClickRef.current) return;
 
+    focusedIconRef.current = spriteNumber;
     setFocusedIcon(spriteNumber);
     railRef.current
       ?.querySelector<HTMLButtonElement>(`[data-sprite-number="${spriteNumber}"]`)
@@ -121,7 +143,6 @@ export function App() {
             </button>
           ))}
         </div>
-        <span className="focus-marker" aria-hidden="true" />
       </aside>
     </main>
   );

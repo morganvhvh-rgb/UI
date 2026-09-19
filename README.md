@@ -4,7 +4,7 @@ A React/Vite workspace for mobile game and UI interaction experiments.
 
 ## Current experiment
 
-The screen is a black portrait canvas with a right-edge vertical sprite carousel. It contains 40 food sprites, shows roughly 12 at once, supports mouse grab-scrolling on desktop, and uses native touch momentum for fast mobile flings.
+The screen is a black portrait canvas with a contained, right-side vertical sprite carousel. It contains 40 food sprites, keeps the current selection enlarged at the exact center, supports mouse grab-scrolling on desktop, and uses native touch momentum for fast mobile flings.
 
 ## Addressing rule
 

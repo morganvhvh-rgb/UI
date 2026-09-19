@@ -52,14 +52,15 @@ button,
   --slot-height: 54px;
   position: absolute;
   top: 50%;
-  right: 0;
-  width: 66px;
-  height: min(calc(var(--slot-height) * 12), calc(100svh - 32px));
+  right: 5%;
+  width: 70px;
+  height: 90svh;
   transform: translateY(-50%);
   overflow: hidden;
-  border-left: 1px solid #242424;
+  border: 1px solid #383838;
+  border-radius: 5px;
   background: #080808;
-  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.72);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.72);
 }
 
 .icon-rail {
@@ -73,13 +74,6 @@ button,
   touch-action: pan-y;
   cursor: grab;
   -webkit-overflow-scrolling: touch;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 22px,
-    #000 calc(100% - 22px),
-    transparent 100%
-  );
 }
 
 .icon-rail.is-dragging {
@@ -109,9 +103,9 @@ button,
 }
 
 .icon-slot .sprite {
-  opacity: 0.68;
-  filter: saturate(0.72) brightness(0.84);
-  transform: scale(0.9);
+  opacity: 0.5;
+  filter: saturate(0.6) brightness(0.7);
+  transform: scale(0.86);
   transition:
     opacity 130ms ease,
     filter 130ms ease,
@@ -120,25 +114,8 @@ button,
 
 .icon-slot[aria-pressed="true"] .sprite {
   opacity: 1;
-  filter: saturate(1) brightness(1.16);
-  transform: scale(1.18);
-}
-
-.icon-slot:focus-visible {
-  outline: 1px solid #565656;
-  outline-offset: -4px;
-}
-
-.focus-marker {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 8px;
-  height: 1px;
-  transform: translateY(-50%);
-  background: #d8d8d8;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.42);
-  pointer-events: none;
+  filter: saturate(1) brightness(1.18);
+  transform: scale(1.34);
 }
 
 @media (min-width: 431px) {
@@ -147,7 +124,7 @@ button,
   }
 
   .icon-rail-shell {
-    height: min(calc(var(--slot-height) * 12), calc(min(860px, 100svh) - 32px));
+    height: min(90svh, 774px);
   }
 }
 

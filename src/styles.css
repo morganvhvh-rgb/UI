@@ -38,6 +38,9 @@ button,
   margin: 0 auto;
   overflow: hidden;
   background: #86a9b2;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .environment-stage {

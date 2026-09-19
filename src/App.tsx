@@ -1,6 +1,7 @@
 import {
   useLayoutEffect,
   useRef,
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type UIEvent,
@@ -14,7 +15,9 @@ const REPEAT_COUNT = 7;
 const MIDDLE_CYCLE = Math.floor(REPEAT_COUNT / 2);
 const INITIAL_ICON = 13;
 const INITIAL_ABSOLUTE_INDEX = MIDDLE_CYCLE * ICON_COUNT + INITIAL_ICON - 1;
-const MAX_FLICK_SLOTS = 2;
+const MAX_FLICK_SLOTS = 6;
+
+type RailCategory = 'Food' | 'Animals';
 
 const LOOPED_ICONS = Array.from(
   { length: ICON_COUNT * REPEAT_COUNT },
@@ -50,7 +53,12 @@ function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
-export function App() {
+type IconRailProps = {
+  category: RailCategory;
+  onBack: () => void;
+};
+
+function IconRail({ category, onBack }: IconRailProps) {
   const railRef = useRef<HTMLDivElement>(null);
   const focusFrameRef = useRef<number | null>(null);
   const settleFrameRef = useRef<number | null>(null);
@@ -248,7 +256,7 @@ export function App() {
 
     const currentIndex = absoluteIndexAtCenter(event.currentTarget);
     const nearestIndex = Math.round(currentIndex);
-    const projectedSlots = clamp((drag.velocity * 105) / SLOT_HEIGHT, -MAX_FLICK_SLOTS, MAX_FLICK_SLOTS);
+    const projectedSlots = clamp((drag.velocity * 135) / SLOT_HEIGHT, -MAX_FLICK_SLOTS, MAX_FLICK_SLOTS);
     const targetIndex = Math.round(nearestIndex + projectedSlots);
     settleToIndex(event.currentTarget, targetIndex);
   }
@@ -273,8 +281,8 @@ export function App() {
   }
 
   return (
-    <main className="phone-canvas">
-      <aside className="icon-rail-shell" aria-label="Food sprite carousel">
+    <div className="rail-mode">
+      <aside className="icon-rail-shell" aria-label={`${category} sprite carousel`}>
         <div
           ref={railRef}
           className="icon-rail"
@@ -294,15 +302,51 @@ export function App() {
               data-absolute-index={absoluteIndex}
               key={absoluteIndex}
               onClick={() => centerIcon(absoluteIndex)}
-              aria-label={`Food ${spriteNumber}`}
+              aria-label={`${category} ${spriteNumber}`}
               aria-pressed={INITIAL_ABSOLUTE_INDEX === absoluteIndex}
               tabIndex={INITIAL_ABSOLUTE_INDEX === absoluteIndex ? 0 : -1}
             >
-              <Sprite category="Food" spriteNumber={spriteNumber} size={32} />
+              <Sprite category={category} spriteNumber={spriteNumber} size={32} />
             </button>
           ))}
         </div>
       </aside>
+      <button type="button" className="back-button" onClick={onBack} aria-label="Back to categories">
+        <span aria-hidden="true">←</span>
+      </button>
+    </div>
+  );
+}
+
+export function App() {
+  const [activeCategory, setActiveCategory] = useState<RailCategory | null>(null);
+
+  return (
+    <main className="phone-canvas">
+      {activeCategory ? (
+        <IconRail
+          key={activeCategory}
+          category={activeCategory}
+          onBack={() => setActiveCategory(null)}
+        />
+      ) : (
+        <nav className="category-picker" aria-label="Sprite categories">
+          <button
+            type="button"
+            className="category-button food-button"
+            onClick={() => setActiveCategory('Food')}
+          >
+            Food
+          </button>
+          <button
+            type="button"
+            className="category-button animals-button"
+            onClick={() => setActiveCategory('Animals')}
+          >
+            Animals
+          </button>
+        </nav>
+      )}
     </main>
   );
 }

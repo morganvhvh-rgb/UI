@@ -1,0 +1,158 @@
+:root {
+  color: #fff;
+  background: #000;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  background: #000;
+  overscroll-behavior: none;
+}
+
+body {
+  min-height: 100svh;
+}
+
+button,
+.sprite {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.phone-canvas {
+  position: relative;
+  width: min(100%, 430px);
+  min-height: 100svh;
+  margin: 0 auto;
+  overflow: hidden;
+  background: #000;
+}
+
+.sprite {
+  display: block;
+  flex: 0 0 auto;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.icon-rail-shell {
+  --slot-height: 54px;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 66px;
+  height: min(calc(var(--slot-height) * 12), calc(100svh - 32px));
+  transform: translateY(-50%);
+  overflow: hidden;
+  border-left: 1px solid #242424;
+  background: #080808;
+  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.72);
+}
+
+.icon-rail {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  touch-action: pan-y;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 22px,
+    #000 calc(100% - 22px),
+    transparent 100%
+  );
+}
+
+.icon-rail.is-dragging {
+  scroll-snap-type: none;
+  cursor: grabbing;
+}
+
+.icon-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.icon-rail:focus {
+  outline: none;
+}
+
+.icon-slot {
+  width: 100%;
+  height: var(--slot-height);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  scroll-snap-align: center;
+  scroll-snap-stop: normal;
+  border: 0;
+  background: transparent;
+  cursor: inherit;
+}
+
+.icon-slot .sprite {
+  opacity: 0.68;
+  filter: saturate(0.72) brightness(0.84);
+  transform: scale(0.9);
+  transition:
+    opacity 130ms ease,
+    filter 130ms ease,
+    transform 130ms ease;
+}
+
+.icon-slot[aria-pressed="true"] .sprite {
+  opacity: 1;
+  filter: saturate(1) brightness(1.16);
+  transform: scale(1.18);
+}
+
+.icon-slot:focus-visible {
+  outline: 1px solid #565656;
+  outline-offset: -4px;
+}
+
+.focus-marker {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 8px;
+  height: 1px;
+  transform: translateY(-50%);
+  background: #d8d8d8;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+}
+
+@media (min-width: 431px) {
+  .phone-canvas {
+    min-height: min(860px, 100svh);
+  }
+
+  .icon-rail-shell {
+    height: min(calc(var(--slot-height) * 12), calc(min(860px, 100svh) - 32px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-slot .sprite {
+    transition: none;
+  }
+}

@@ -57,10 +57,19 @@ function clamp(value: number, minimum: number, maximum: number) {
 
 type IconRailProps = {
   category: RailCategory;
+  placementSpriteNumber: number | null;
   onBack: () => void;
+  onRequestPlacement: (spriteNumber: number) => void;
+  onSelectionChange: () => void;
 };
 
-function IconRail({ category, onBack }: IconRailProps) {
+function IconRail({
+  category,
+  placementSpriteNumber,
+  onBack,
+  onRequestPlacement,
+  onSelectionChange,
+}: IconRailProps) {
   const [selectedSpriteNumber, setSelectedSpriteNumber] = useState(INITIAL_ICON);
   const railRef = useRef<HTMLDivElement>(null);
   const focusFrameRef = useRef<number | null>(null);
@@ -106,6 +115,7 @@ function IconRail({ category, onBack }: IconRailProps) {
     }
     selectedAbsoluteRef.current = absoluteIndex;
     setSelectedSpriteNumber(wrappedIndex(absoluteIndex) + 1);
+    onSelectionChange();
   }
 
   function recenterLoop(rail: HTMLDivElement, absoluteIndex: number) {
@@ -294,13 +304,23 @@ function IconRail({ category, onBack }: IconRailProps) {
         aria-label={`${category} ${selectedSpriteNumber} selected`}
         aria-live="polite"
       >
-        <Sprite
-          key={`${category}-${selectedSpriteNumber}`}
-          category={category}
-          spriteNumber={selectedSpriteNumber}
-          size={64}
-          className="detail-sprite"
-        />
+        <button
+          type="button"
+          className={`detail-sprite-button${
+            placementSpriteNumber === selectedSpriteNumber ? ' is-placement-active' : ''
+          }`}
+          onClick={() => onRequestPlacement(selectedSpriteNumber)}
+          aria-label={`Place ${category.toLowerCase()} ${selectedSpriteNumber}`}
+          aria-pressed={placementSpriteNumber === selectedSpriteNumber}
+        >
+          <Sprite
+            key={`${category}-${selectedSpriteNumber}`}
+            category={category}
+            spriteNumber={selectedSpriteNumber}
+            size={64}
+            className="detail-sprite"
+          />
+        </button>
         <div className="detail-copy">
           <strong>
             {category === 'Food' ? 'Food' : 'Animal'} {selectedSpriteNumber}
@@ -347,15 +367,44 @@ function IconRail({ category, onBack }: IconRailProps) {
 
 export function App() {
   const [activeCategory, setActiveCategory] = useState<RailCategory | null>(null);
+  const [placementRequest, setPlacementRequest] = useState<{
+    category: RailCategory;
+    spriteNumber: number;
+  } | null>(null);
+
+  const activePlacementSprite =
+    placementRequest?.category === activeCategory ? placementRequest.spriteNumber : null;
+
+  function returnToCategories() {
+    setPlacementRequest(null);
+    setActiveCategory(null);
+  }
+
+  function togglePlacement(category: RailCategory, spriteNumber: number) {
+    setPlacementRequest((current) => {
+      if (current?.category === category && current.spriteNumber === spriteNumber) return null;
+      return { category, spriteNumber };
+    });
+  }
 
   return (
     <main className="phone-canvas">
-      {activeCategory && <GameEnvironment key={activeCategory} category={activeCategory} />}
+      {activeCategory && (
+        <GameEnvironment
+          key={activeCategory}
+          category={activeCategory}
+          placementSpriteNumber={activePlacementSprite}
+          onPlacementComplete={() => setPlacementRequest(null)}
+        />
+      )}
       {activeCategory ? (
         <IconRail
           key={activeCategory}
           category={activeCategory}
-          onBack={() => setActiveCategory(null)}
+          placementSpriteNumber={activePlacementSprite}
+          onBack={returnToCategories}
+          onRequestPlacement={(spriteNumber) => togglePlacement(activeCategory, spriteNumber)}
+          onSelectionChange={() => setPlacementRequest(null)}
         />
       ) : (
         <nav className="category-picker" aria-label="Sprite categories">

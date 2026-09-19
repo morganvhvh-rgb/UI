@@ -63,6 +63,11 @@ button,
   cursor: grabbing;
 }
 
+.environment-stage.is-placing .environment-canvas,
+.environment-stage.is-placing .environment-canvas:active {
+  cursor: crosshair;
+}
+
 .sprite {
   display: block;
   flex: 0 0 auto;
@@ -174,6 +179,28 @@ button,
 
 .detail-sprite {
   animation: detail-sprite-in 150ms ease-out both;
+}
+
+.detail-sprite-button {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.detail-sprite-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.72);
+  outline-offset: 2px;
+}
+
+.detail-sprite-button.is-placement-active {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.17), transparent 68%);
+  animation: placement-ready 520ms ease-in-out infinite alternate;
 }
 
 .detail-copy {
@@ -338,6 +365,17 @@ button,
   }
 }
 
+@keyframes placement-ready {
+  from {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  to {
+    transform: scale(1.07);
+    filter: brightness(1.2);
+  }
+}
+
 .category-picker {
   animation-name: picker-in;
 }
@@ -357,6 +395,7 @@ button,
   .icon-slot.is-locked .sprite,
   .detail-panel,
   .detail-sprite,
+  .detail-sprite-button.is-placement-active,
   .rail-mode,
   .category-picker {
     animation: none;

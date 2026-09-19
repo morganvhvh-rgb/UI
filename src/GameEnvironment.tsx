@@ -1,17 +1,22 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const TREE_POSITIONS = [
   [-4.4, -2.5, 0.95],
   [4.7, -3.8, 1.08],
+  [-8.2, 1.2, 1.16],
+  [8.5, 2.1, 1.2],
+  [-5.8, 4.6, 1.08],
+  [5.6, 5.4, 1.12],
   [-6.2, -7.2, 1.18],
   [6.6, -8.5, 1.26],
   [-3.1, -11.2, 1.08],
   [3.8, -13.4, 1.22],
-  [-7.5, -15.2, 1.35],
-  [7.7, -16.8, 1.32],
-  [-1.4, -19.2, 1.16],
-  [4.8, -21.5, 1.3],
+  [-7.2, -13.8, 1.24],
+  [7.3, -14.2, 1.2],
+  [-1.4, -15.4, 1.14],
+  [4.6, -14.8, 1.2],
 ] as const;
 
 const ROCK_POSITIONS = [
@@ -173,6 +178,10 @@ function addMountains(scene: THREE.Scene) {
     [-3.5, -33, 0.82],
     [5.5, -31, 1.02],
     [13, -34, 1.22],
+    [27, -10, 1.1],
+    [-28, -7, 1.2],
+    [-14, 20, 1.08],
+    [11, 21, 1.18],
   ].forEach(([x, z, scale], index) => {
     const mountain = new THREE.Mesh(geometry, material);
     mountain.position.set(x, 3.5 * scale - 1.1, z);
@@ -191,6 +200,8 @@ function createClouds() {
     [-5.5, 8.4, -17, 1.2],
     [3.7, 9.5, -22, 0.9],
     [8.2, 7.7, -18, 0.72],
+    [-7.8, 8.8, 9, 0.82],
+    [5.4, 9.2, 12, 1.05],
   ].forEach(([x, y, z, scale], cloudIndex) => {
     for (let part = 0; part < 3; part += 1) {
       const cloud = new THREE.Mesh(geometry, material);
@@ -216,7 +227,7 @@ export function GameEnvironment() {
     scene.fog = new THREE.Fog(0x86a9b2, 17, 39);
 
     const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 60);
-    camera.position.set(0, 4.15, 9.5);
+    camera.position.set(0, 5.25, 14);
 
     const renderer = new THREE.WebGLRenderer({
       antialias: false,
@@ -228,6 +239,19 @@ export function GameEnvironment() {
     renderer.domElement.className = 'environment-canvas';
     renderer.domElement.setAttribute('aria-hidden', 'true');
     host.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.15, -5.2);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.075;
+    controls.enablePan = false;
+    controls.minDistance = 17;
+    controls.maxDistance = 23;
+    controls.minPolarAngle = Math.PI * 0.2;
+    controls.maxPolarAngle = Math.PI * 0.485;
+    controls.rotateSpeed = 0.58;
+    controls.zoomSpeed = 0.7;
+    controls.update();
 
     scene.add(new THREE.HemisphereLight(0xc6dbe0, 0x455034, 2.15));
     const sunlight = new THREE.DirectionalLight(0xffe0ad, 2.35);
@@ -261,9 +285,7 @@ export function GameEnvironment() {
       lastRender = time;
 
       const seconds = time * 0.001;
-      camera.position.x = Math.sin(seconds * 0.18) * 0.1;
-      camera.position.y = 4.15 + Math.sin(seconds * 0.14) * 0.035;
-      camera.lookAt(Math.sin(seconds * 0.12) * 0.08, 1.15, -5.2);
+      controls.update();
       clouds.position.x = Math.sin(seconds * 0.055) * 0.45;
       renderer.render(scene, camera);
     };
@@ -272,6 +294,7 @@ export function GameEnvironment() {
     return () => {
       cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
+      controls.dispose();
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         object.geometry.dispose();

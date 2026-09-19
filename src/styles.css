@@ -52,6 +52,12 @@ button,
   height: 100%;
   display: block;
   image-rendering: pixelated;
+  touch-action: none;
+  cursor: grab;
+}
+
+.environment-canvas:active {
+  cursor: grabbing;
 }
 
 .sprite {
@@ -65,11 +71,11 @@ button,
 .category-picker {
   position: absolute;
   top: 50%;
-  right: 5%;
-  width: 82px;
+  right: 12px;
+  width: 78px;
   z-index: 2;
   display: grid;
-  gap: 15px;
+  gap: 12px;
   transform: translateY(-50%);
   animation: control-in 160ms ease-out both;
 }
@@ -83,7 +89,7 @@ button,
 }
 
 .category-button {
-  width: 82px;
+  width: 78px;
   height: 44px;
   padding: 0;
   border-radius: 3px;
@@ -122,15 +128,15 @@ button,
 
 .rail-mode {
   position: absolute;
-  top: 4svh;
-  right: 5%;
-  width: 70px;
+  top: 2svh;
+  right: 12px;
+  width: 64px;
   z-index: 2;
-  height: 86svh;
+  height: 90svh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   animation: control-in 180ms ease-out both;
 }
 
@@ -148,17 +154,18 @@ button,
 
 .detail-panel {
   position: absolute;
-  top: 0;
-  right: 82px;
-  width: min(220px, calc(100vw - 114px));
-  min-height: 92px;
-  padding: 14px;
+  top: calc(50% - 26px);
+  right: 76px;
+  width: min(210px, calc(100vw - 110px));
+  min-height: 88px;
+  padding: 12px;
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   align-items: center;
-  gap: 13px;
+  gap: 12px;
   border-radius: 4px;
   background: linear-gradient(135deg, var(--theme-dark), rgba(8, 8, 12, 0.42));
+  transform: translateY(-50%);
   animation: detail-in 180ms 50ms ease-out both;
 }
 
@@ -193,7 +200,7 @@ button,
   --slot-height: 58px;
   position: relative;
   flex: 1 1 auto;
-  width: 70px;
+  width: 64px;
   min-height: 0;
   overflow: hidden;
   border-radius: 4px;
@@ -309,11 +316,11 @@ button,
 @keyframes detail-in {
   from {
     opacity: 0;
-    transform: translateX(8px);
+    transform: translate(8px, -50%);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translate(0, -50%);
   }
 }
 
@@ -359,6 +366,6 @@ button,
   }
 
   .rail-mode {
-    height: min(86svh, 740px);
+    height: min(90svh, 774px);
   }
 }

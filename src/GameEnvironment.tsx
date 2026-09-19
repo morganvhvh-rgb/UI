@@ -1,6 +1,15 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import animalsUrl from '../sprites/animals.png';
+import foodUrl from '../sprites/food.png';
+
+type EnvironmentCategory = 'Food' | 'Animals';
+
+const WORLD_SPRITE_NUMBERS: Record<EnvironmentCategory, number> = {
+  Food: Math.floor(Math.random() * 25) + 1,
+  Animals: Math.floor(Math.random() * 25) + 1,
+};
 
 const TREE_POSITIONS = [
   [-4.4, -2.5, 0.95],
@@ -215,7 +224,175 @@ function createClouds() {
   return group;
 }
 
-export function GameEnvironment() {
+function addBox(
+  parent: THREE.Object3D,
+  geometry: THREE.BoxGeometry,
+  material: THREE.Material,
+  size: [number, number, number],
+  position: [number, number, number],
+  rotationY = 0,
+) {
+  const box = new THREE.Mesh(geometry, material);
+  box.position.set(...position);
+  box.rotation.y = rotationY;
+  box.scale.set(...size);
+  parent.add(box);
+  return box;
+}
+
+function addShopShelf(
+  scene: THREE.Scene,
+  boxGeometry: THREE.BoxGeometry,
+  woodMaterial: THREE.Material,
+  x: number,
+  z: number,
+  rotationY: number,
+  width: number,
+) {
+  const shelf = new THREE.Group();
+  shelf.position.set(x, 0, z);
+  shelf.rotation.y = rotationY;
+
+  [0.45, 1.25, 2.05, 2.85].forEach((height) => {
+    addBox(shelf, boxGeometry, woodMaterial, [width, 0.13, 0.72], [0, height, 0]);
+  });
+  [-width / 2 + 0.1, width / 2 - 0.1].forEach((postX) => {
+    addBox(shelf, boxGeometry, woodMaterial, [0.16, 3, 0.18], [postX, 1.5, 0]);
+  });
+
+  scene.add(shelf);
+}
+
+function addDisplayTable(
+  scene: THREE.Scene,
+  boxGeometry: THREE.BoxGeometry,
+  woodMaterial: THREE.Material,
+  accentMaterial: THREE.Material,
+  x: number,
+  z: number,
+) {
+  addBox(scene, boxGeometry, woodMaterial, [2.65, 0.16, 1.35], [x, 1.05, z]);
+  addBox(scene, boxGeometry, accentMaterial, [2.15, 0.86, 0.95], [x, 0.55, z]);
+}
+
+function createShop(scene: THREE.Scene) {
+  const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const wallMaterial = new THREE.MeshLambertMaterial({ color: 0xc8b99d, flatShading: true });
+  const lowerWallMaterial = new THREE.MeshLambertMaterial({ color: 0x61736a, flatShading: true });
+  const woodMaterial = new THREE.MeshLambertMaterial({ color: 0x76543c, flatShading: true });
+  const accentMaterial = new THREE.MeshLambertMaterial({ color: 0x9b654e, flatShading: true });
+  const counterMaterial = new THREE.MeshLambertMaterial({ color: 0x536962, flatShading: true });
+
+  const lightTiles = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1.43, 0.06, 1.43),
+    new THREE.MeshLambertMaterial({ color: 0xaa987c, flatShading: true }),
+    72,
+  );
+  const darkTiles = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1.43, 0.06, 1.43),
+    new THREE.MeshLambertMaterial({ color: 0x95846d, flatShading: true }),
+    72,
+  );
+  const tileTransform = new THREE.Object3D();
+  let lightIndex = 0;
+  let darkIndex = 0;
+
+  for (let row = 0; row < 12; row += 1) {
+    for (let column = 0; column < 12; column += 1) {
+      tileTransform.position.set((column - 5.5) * 1.47, -0.03, (row - 5.5) * 1.47);
+      tileTransform.updateMatrix();
+      if ((row + column) % 2 === 0) {
+        lightTiles.setMatrixAt(lightIndex, tileTransform.matrix);
+        lightIndex += 1;
+      } else {
+        darkTiles.setMatrixAt(darkIndex, tileTransform.matrix);
+        darkIndex += 1;
+      }
+    }
+  }
+  lightTiles.instanceMatrix.needsUpdate = true;
+  darkTiles.instanceMatrix.needsUpdate = true;
+  scene.add(lightTiles, darkTiles);
+
+  addBox(scene, boxGeometry, wallMaterial, [18, 5.8, 0.25], [0, 2.9, -8.8]);
+  addBox(scene, boxGeometry, wallMaterial, [18, 5.8, 0.25], [0, 2.9, 8.8]);
+  addBox(scene, boxGeometry, wallMaterial, [0.25, 5.8, 18], [-8.8, 2.9, 0]);
+  addBox(scene, boxGeometry, wallMaterial, [0.25, 5.8, 18], [8.8, 2.9, 0]);
+
+  addBox(scene, boxGeometry, lowerWallMaterial, [18, 0.62, 0.32], [0, 0.31, -8.62]);
+  addBox(scene, boxGeometry, lowerWallMaterial, [18, 0.62, 0.32], [0, 0.31, 8.62]);
+  addBox(scene, boxGeometry, lowerWallMaterial, [0.32, 0.62, 18], [-8.62, 0.31, 0]);
+  addBox(scene, boxGeometry, lowerWallMaterial, [0.32, 0.62, 18], [8.62, 0.31, 0]);
+
+  addShopShelf(scene, boxGeometry, woodMaterial, 0, -7.8, 0, 5.2);
+  addShopShelf(scene, boxGeometry, woodMaterial, -7.75, -1.7, Math.PI / 2, 4.2);
+  addShopShelf(scene, boxGeometry, woodMaterial, 7.75, -2.1, Math.PI / 2, 4.2);
+
+  addDisplayTable(scene, boxGeometry, woodMaterial, accentMaterial, -1.35, -0.9);
+  addDisplayTable(scene, boxGeometry, woodMaterial, accentMaterial, 2.25, -2.5);
+  addBox(scene, boxGeometry, counterMaterial, [3.7, 1.15, 1.15], [3.4, 0.58, 4.4]);
+  addBox(scene, boxGeometry, woodMaterial, [3.95, 0.16, 1.35], [3.4, 1.18, 4.4]);
+
+  const crateMaterial = new THREE.MeshLambertMaterial({ color: 0x8d704a, flatShading: true });
+  [
+    [-2.15, 1.33, -0.9],
+    [-0.55, 1.33, -0.9],
+    [1.4, 1.33, -2.5],
+    [3.05, 1.33, -2.5],
+  ].forEach(([x, y, z], index) => {
+    addBox(scene, boxGeometry, crateMaterial, [0.72, 0.42, 0.74], [x, y, z], index * 0.12);
+  });
+}
+
+function addPaperSprite(
+  scene: THREE.Scene,
+  category: EnvironmentCategory,
+  spriteNumber: number,
+  position: THREE.Vector3,
+  scale: number,
+  shadowHeight: number,
+) {
+  const columns = 20;
+  const rows = category === 'Food' ? 11 : 6;
+  const zeroBasedIndex = spriteNumber - 1;
+  const texture = new THREE.TextureLoader().load(category === 'Food' ? foodUrl : animalsUrl);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.repeat.set(1 / columns, 1 / rows);
+  texture.offset.set(
+    (zeroBasedIndex % columns) / columns,
+    1 - (Math.floor(zeroBasedIndex / columns) + 1) / rows,
+  );
+
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      alphaTest: 0.15,
+      depthWrite: true,
+    }),
+  );
+  sprite.position.copy(position);
+  sprite.scale.set(scale, scale, 1);
+  scene.add(sprite);
+
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(scale * 0.28, 12),
+    new THREE.MeshBasicMaterial({ color: 0x172017, transparent: true, opacity: 0.28 }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.set(position.x, shadowHeight, position.z);
+  shadow.scale.set(1.25, 0.55, 1);
+  scene.add(shadow);
+}
+
+type GameEnvironmentProps = {
+  category: EnvironmentCategory;
+};
+
+export function GameEnvironment({ category }: GameEnvironmentProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -223,11 +400,57 @@ export function GameEnvironment() {
     if (!host) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x86a9b2);
-    scene.fog = new THREE.Fog(0x86a9b2, 17, 39);
-
     const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 60);
-    camera.position.set(0, 5.25, 14);
+    let clouds: THREE.Group | null = null;
+
+    if (category === 'Animals') {
+      scene.background = new THREE.Color(0x86a9b2);
+      scene.fog = new THREE.Fog(0x86a9b2, 17, 39);
+      camera.position.set(0, 5.25, 14);
+
+      scene.add(new THREE.HemisphereLight(0xc6dbe0, 0x455034, 2.15));
+      const sunlight = new THREE.DirectionalLight(0xffe0ad, 2.35);
+      sunlight.position.set(-6, 10, 7);
+      scene.add(sunlight);
+
+      scene.add(createGround(), createPath());
+      addTrees(scene);
+      addRocks(scene);
+      addMountains(scene);
+      clouds = createClouds();
+      scene.add(clouds);
+
+      const animalX = -1.7;
+      const animalZ = -3.8;
+      const animalGround = terrainHeight(animalX, animalZ);
+      addPaperSprite(
+        scene,
+        category,
+        WORLD_SPRITE_NUMBERS.Animals,
+        new THREE.Vector3(animalX, animalGround + 0.82, animalZ),
+        1.55,
+        animalGround + 0.025,
+      );
+    } else {
+      scene.background = new THREE.Color(0x70685b);
+      scene.fog = new THREE.Fog(0x70685b, 12, 25);
+      camera.position.set(0, 4.2, 7.4);
+
+      scene.add(new THREE.HemisphereLight(0xffead0, 0x463e35, 2.3));
+      const shopLight = new THREE.DirectionalLight(0xffd49b, 2.6);
+      shopLight.position.set(-4, 9, 5);
+      scene.add(shopLight);
+
+      createShop(scene);
+      addPaperSprite(
+        scene,
+        category,
+        WORLD_SPRITE_NUMBERS.Food,
+        new THREE.Vector3(-1.35, 1.72, -0.9),
+        1,
+        1.145,
+      );
+    }
 
     const renderer = new THREE.WebGLRenderer({
       antialias: false,
@@ -241,29 +464,23 @@ export function GameEnvironment() {
     host.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 1.15, -5.2);
+    if (category === 'Animals') {
+      controls.target.set(0, 1.15, -5.2);
+      controls.minDistance = 17;
+      controls.maxDistance = 23;
+    } else {
+      controls.target.set(0, 1.2, 0);
+      controls.minDistance = 6.4;
+      controls.maxDistance = 8.2;
+    }
     controls.enableDamping = true;
     controls.dampingFactor = 0.075;
     controls.enablePan = false;
-    controls.minDistance = 17;
-    controls.maxDistance = 23;
-    controls.minPolarAngle = Math.PI * 0.2;
+    controls.minPolarAngle = category === 'Food' ? Math.PI * 0.34 : Math.PI * 0.2;
     controls.maxPolarAngle = Math.PI * 0.485;
     controls.rotateSpeed = 0.58;
     controls.zoomSpeed = 0.7;
     controls.update();
-
-    scene.add(new THREE.HemisphereLight(0xc6dbe0, 0x455034, 2.15));
-    const sunlight = new THREE.DirectionalLight(0xffe0ad, 2.35);
-    sunlight.position.set(-6, 10, 7);
-    scene.add(sunlight);
-
-    scene.add(createGround(), createPath());
-    addTrees(scene);
-    addRocks(scene);
-    addMountains(scene);
-    const clouds = createClouds();
-    scene.add(clouds);
 
     const resize = () => {
       const width = Math.max(host.clientWidth, 1);
@@ -286,7 +503,7 @@ export function GameEnvironment() {
 
       const seconds = time * 0.001;
       controls.update();
-      clouds.position.x = Math.sin(seconds * 0.055) * 0.45;
+      if (clouds) clouds.position.x = Math.sin(seconds * 0.055) * 0.45;
       renderer.render(scene, camera);
     };
     frameId = requestAnimationFrame(render);
@@ -296,15 +513,18 @@ export function GameEnvironment() {
       resizeObserver.disconnect();
       controls.dispose();
       scene.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
+        if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Sprite)) return;
         object.geometry.dispose();
         const materials = Array.isArray(object.material) ? object.material : [object.material];
-        materials.forEach((material) => material.dispose());
+        materials.forEach((material) => {
+          if ('map' in material && material.map instanceof THREE.Texture) material.map.dispose();
+          material.dispose();
+        });
       });
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [category]);
 
   return <div ref={hostRef} className="environment-stage" aria-hidden="true" />;
 }

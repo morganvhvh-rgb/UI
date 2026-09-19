@@ -350,7 +350,7 @@ export function App() {
 
   return (
     <main className="phone-canvas">
-      <GameEnvironment />
+      {activeCategory && <GameEnvironment key={activeCategory} category={activeCategory} />}
       {activeCategory ? (
         <IconRail
           key={activeCategory}

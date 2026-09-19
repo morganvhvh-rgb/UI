@@ -8,6 +8,7 @@ import {
   type UIEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react';
+import { GameEnvironment } from './GameEnvironment';
 import { Sprite } from './sprites/Sprite';
 
 const ICON_COUNT = 25;
@@ -349,6 +350,7 @@ export function App() {
 
   return (
     <main className="phone-canvas">
+      <GameEnvironment />
       {activeCategory ? (
         <IconRail
           key={activeCategory}

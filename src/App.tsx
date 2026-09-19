@@ -3,6 +3,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type UIEvent,
   type WheelEvent as ReactWheelEvent,
@@ -59,23 +60,24 @@ type IconRailProps = {
 };
 
 function IconRail({ category, onBack }: IconRailProps) {
+  const [selectedSpriteNumber, setSelectedSpriteNumber] = useState(INITIAL_ICON);
   const railRef = useRef<HTMLDivElement>(null);
   const focusFrameRef = useRef<number | null>(null);
   const settleFrameRef = useRef<number | null>(null);
   const settleTimerRef = useRef<number | null>(null);
   const dragRef = useRef<Drag | null>(null);
-  const suppressClickRef = useRef(false);
+  const suppressTapRef = useRef(false);
   const selectedAbsoluteRef = useRef(INITIAL_ABSOLUTE_INDEX);
-  const activeSlotsRef = useRef<Set<HTMLButtonElement>>(new Set());
+  const activeSlotsRef = useRef<Set<HTMLDivElement>>(new Set());
 
   function updateVisualFocus(rail: HTMLDivElement) {
     const centerIndex = absoluteIndexAtCenter(rail);
-    const nextActiveSlots = new Set<HTMLButtonElement>();
+    const nextActiveSlots = new Set<HTMLDivElement>();
     const firstNearbyIndex = Math.max(Math.floor(centerIndex) - 7, 0);
     const lastNearbyIndex = Math.min(Math.ceil(centerIndex) + 7, LOOPED_ICONS.length - 1);
 
     for (let absoluteIndex = firstNearbyIndex; absoluteIndex <= lastNearbyIndex; absoluteIndex += 1) {
-      const slot = rail.children.item(absoluteIndex) as HTMLButtonElement | null;
+      const slot = rail.children.item(absoluteIndex) as HTMLDivElement | null;
       if (!slot) continue;
       const distance = Math.abs(absoluteIndex - centerIndex);
       const focus = Math.max(0, 1 - distance / 1.35);
@@ -90,22 +92,19 @@ function IconRail({ category, onBack }: IconRailProps) {
   }
 
   function commitSelection(rail: HTMLDivElement, absoluteIndex: number) {
-    const previousSlot = rail.children.item(selectedAbsoluteRef.current) as HTMLButtonElement | null;
-    const nextSlot = rail.children.item(absoluteIndex) as HTMLButtonElement | null;
+    const previousSlot = rail.children.item(selectedAbsoluteRef.current) as HTMLDivElement | null;
+    const nextSlot = rail.children.item(absoluteIndex) as HTMLDivElement | null;
 
-    previousSlot?.setAttribute('aria-pressed', 'false');
     previousSlot?.classList.remove('is-locked');
-    if (previousSlot) previousSlot.tabIndex = -1;
 
-    nextSlot?.setAttribute('aria-pressed', 'true');
     if (nextSlot) {
-      nextSlot.tabIndex = 0;
       nextSlot.classList.remove('is-locked');
-      // Restart the small lock-in response even when the same food is selected again.
+      // Restart the small lock-in response even when the same sprite is selected again.
       void nextSlot.offsetWidth;
       nextSlot.classList.add('is-locked');
     }
     selectedAbsoluteRef.current = absoluteIndex;
+    setSelectedSpriteNumber(wrappedIndex(absoluteIndex) + 1);
   }
 
   function recenterLoop(rail: HTMLDivElement, absoluteIndex: number) {
@@ -195,11 +194,6 @@ function IconRail({ category, onBack }: IconRailProps) {
     });
   }
 
-  function centerIcon(absoluteIndex: number) {
-    if (suppressClickRef.current || !railRef.current) return;
-    settleToIndex(railRef.current, absoluteIndex);
-  }
-
   function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
     if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
 
@@ -215,8 +209,6 @@ function IconRail({ category, onBack }: IconRailProps) {
       velocity: 0,
       moved: false,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.currentTarget.classList.add('is-dragging');
   }
 
   function moveDrag(event: ReactPointerEvent<HTMLDivElement>) {
@@ -227,7 +219,11 @@ function IconRail({ category, onBack }: IconRailProps) {
     const elapsed = Math.max(event.timeStamp - drag.lastTime, 1);
     const instantaneousVelocity = -(event.clientY - drag.lastY) / elapsed;
 
-    if (!drag.moved && Math.abs(distance) > 5) drag.moved = true;
+    if (!drag.moved && Math.abs(distance) > 5) {
+      drag.moved = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      event.currentTarget.classList.add('is-dragging');
+    }
     if (drag.moved) {
       drag.velocity = drag.velocity * 0.68 + instantaneousVelocity * 0.32;
       event.currentTarget.scrollTop = drag.startScrollTop - distance * 0.82;
@@ -249,9 +245,9 @@ function IconRail({ category, onBack }: IconRailProps) {
 
     if (!drag.moved) return;
 
-    suppressClickRef.current = true;
+    suppressTapRef.current = true;
     window.setTimeout(() => {
-      suppressClickRef.current = false;
+      suppressTapRef.current = false;
     }, 0);
 
     const currentIndex = absoluteIndexAtCenter(event.currentTarget);
@@ -259,6 +255,16 @@ function IconRail({ category, onBack }: IconRailProps) {
     const projectedSlots = clamp((drag.velocity * 135) / SLOT_HEIGHT, -MAX_FLICK_SLOTS, MAX_FLICK_SLOTS);
     const targetIndex = Math.round(nearestIndex + projectedSlots);
     settleToIndex(event.currentTarget, targetIndex);
+  }
+
+  function handleRailTap(event: ReactMouseEvent<HTMLDivElement>) {
+    if (suppressTapRef.current) return;
+
+    const slot = (event.target as HTMLElement).closest<HTMLElement>('.icon-slot');
+    const absoluteIndex = Number(slot?.dataset.absoluteIndex);
+    if (!Number.isInteger(absoluteIndex)) return;
+
+    settleToIndex(event.currentTarget, absoluteIndex);
   }
 
   function handleWheel(event: ReactWheelEvent<HTMLDivElement>) {
@@ -281,7 +287,26 @@ function IconRail({ category, onBack }: IconRailProps) {
   }
 
   return (
-    <div className="rail-mode">
+    <div className={`rail-mode ${category.toLowerCase()}`}>
+      <section
+        className="detail-panel"
+        aria-label={`${category} ${selectedSpriteNumber} selected`}
+        aria-live="polite"
+      >
+        <Sprite
+          key={`${category}-${selectedSpriteNumber}`}
+          category={category}
+          spriteNumber={selectedSpriteNumber}
+          size={64}
+          className="detail-sprite"
+        />
+        <div className="detail-copy">
+          <strong>
+            {category === 'Food' ? 'Food' : 'Animal'} {selectedSpriteNumber}
+          </strong>
+          <p>Selected and ready to use in the game.</p>
+        </div>
+      </section>
       <aside className="icon-rail-shell" aria-label={`${category} sprite carousel`}>
         <div
           ref={railRef}
@@ -291,23 +316,24 @@ function IconRail({ category, onBack }: IconRailProps) {
           onPointerMove={moveDrag}
           onPointerUp={finishDrag}
           onPointerCancel={finishDrag}
+          onClick={handleRailTap}
           onWheel={handleWheel}
           onKeyDown={handleKeyDown}
           tabIndex={0}
         >
           {LOOPED_ICONS.map(({ absoluteIndex, spriteNumber }) => (
-            <button
-              type="button"
+            <div
               className="icon-slot"
               data-absolute-index={absoluteIndex}
               key={absoluteIndex}
-              onClick={() => centerIcon(absoluteIndex)}
-              aria-label={`${category} ${spriteNumber}`}
-              aria-pressed={INITIAL_ABSOLUTE_INDEX === absoluteIndex}
-              tabIndex={INITIAL_ABSOLUTE_INDEX === absoluteIndex ? 0 : -1}
             >
-              <Sprite category={category} spriteNumber={spriteNumber} size={32} />
-            </button>
+              <Sprite
+                category={category}
+                spriteNumber={spriteNumber}
+                size={32}
+                aria-hidden="true"
+              />
+            </div>
           ))}
         </div>
       </aside>

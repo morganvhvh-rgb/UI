@@ -1,15 +1,27 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import animalsUrl from '../sprites/animals.png';
-import foodUrl from '../sprites/food.png';
+import { getSpriteCell, SPRITE_ATLAS } from './sprites/atlas';
 
 type EnvironmentCategory = 'Food' | 'Animals';
 
-const WORLD_SPRITE_NUMBERS: Record<EnvironmentCategory, number> = {
-  Food: Math.floor(Math.random() * 25) + 1,
-  Animals: Math.floor(Math.random() * 25) + 1,
-};
+// One WebGL context serves both scenes, including React's development remounts.
+let sharedRenderer: THREE.WebGLRenderer | null = null;
+
+import.meta.hot?.dispose(() => {
+  sharedRenderer?.dispose();
+  sharedRenderer?.forceContextLoss();
+  sharedRenderer = null;
+});
+
+function randomSpriteNumbers(category: EnvironmentCategory, count: number) {
+  const available = Array.from({ length: SPRITE_ATLAS[category].count }, (_, index) => index + 1);
+  for (let index = 0; index < count; index += 1) {
+    const swapIndex = index + Math.floor(Math.random() * (available.length - index));
+    [available[index], available[swapIndex]] = [available[swapIndex], available[index]];
+  }
+  return available.slice(0, count);
+}
 
 const TREE_POSITIONS = [
   [-4.4, -2.5, 0.95],
@@ -250,26 +262,23 @@ function addShopShelf(
   width: number,
 ) {
   const shelf = new THREE.Group();
-  const placementSurfaces: THREE.Mesh[] = [];
   shelf.position.set(x, 0, z);
   shelf.rotation.y = rotationY;
 
   [0.45, 1.25, 2.05, 2.85].forEach((height) => {
-    const board = addBox(
+    addBox(
       shelf,
       boxGeometry,
       woodMaterial,
       [width, 0.13, 0.72],
       [0, height, 0],
     );
-    placementSurfaces.push(board);
   });
   [-width / 2 + 0.1, width / 2 - 0.1].forEach((postX) => {
     addBox(shelf, boxGeometry, woodMaterial, [0.16, 3, 0.18], [postX, 1.5, 0]);
   });
 
   scene.add(shelf);
-  return placementSurfaces;
 }
 
 function addDisplayTable(
@@ -280,7 +289,7 @@ function addDisplayTable(
   x: number,
   z: number,
 ) {
-  const surface = addBox(
+  addBox(
     scene,
     boxGeometry,
     woodMaterial,
@@ -288,11 +297,9 @@ function addDisplayTable(
     [x, 1.05, z],
   );
   addBox(scene, boxGeometry, accentMaterial, [2.15, 0.86, 0.95], [x, 0.55, z]);
-  return surface;
 }
 
 function createShop(scene: THREE.Scene) {
-  const placementSurfaces: THREE.Mesh[] = [];
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const wallMaterial = new THREE.MeshLambertMaterial({ color: 0xc8b99d, flatShading: true });
   const lowerWallMaterial = new THREE.MeshLambertMaterial({ color: 0x61736a, flatShading: true });
@@ -341,20 +348,14 @@ function createShop(scene: THREE.Scene) {
   addBox(scene, boxGeometry, lowerWallMaterial, [0.32, 0.62, 18], [-8.62, 0.31, 0]);
   addBox(scene, boxGeometry, lowerWallMaterial, [0.32, 0.62, 18], [8.62, 0.31, 0]);
 
-  placementSurfaces.push(
-    ...addShopShelf(scene, boxGeometry, woodMaterial, 0, -7.8, 0, 5.2),
-    ...addShopShelf(scene, boxGeometry, woodMaterial, -7.75, -1.7, Math.PI / 2, 4.2),
-    ...addShopShelf(scene, boxGeometry, woodMaterial, 7.75, -2.1, Math.PI / 2, 4.2),
-  );
+  addShopShelf(scene, boxGeometry, woodMaterial, 0, -7.8, 0, 5.2);
+  addShopShelf(scene, boxGeometry, woodMaterial, -7.75, -1.7, Math.PI / 2, 4.2);
+  addShopShelf(scene, boxGeometry, woodMaterial, 7.75, -2.1, Math.PI / 2, 4.2);
 
-  placementSurfaces.push(
-    addDisplayTable(scene, boxGeometry, woodMaterial, accentMaterial, -1.35, -0.9),
-    addDisplayTable(scene, boxGeometry, woodMaterial, accentMaterial, 2.25, -2.5),
-  );
+  addDisplayTable(scene, boxGeometry, woodMaterial, accentMaterial, -1.35, -0.9);
+  addDisplayTable(scene, boxGeometry, woodMaterial, accentMaterial, 2.25, -2.5);
   addBox(scene, boxGeometry, counterMaterial, [3.7, 1.15, 1.15], [3.4, 0.58, 4.4]);
-  placementSurfaces.push(
-    addBox(scene, boxGeometry, woodMaterial, [3.95, 0.16, 1.35], [3.4, 1.18, 4.4]),
-  );
+  addBox(scene, boxGeometry, woodMaterial, [3.95, 0.16, 1.35], [3.4, 1.18, 4.4]);
 
   const crateMaterial = new THREE.MeshLambertMaterial({ color: 0x8d704a, flatShading: true });
   [
@@ -366,7 +367,6 @@ function createShop(scene: THREE.Scene) {
     addBox(scene, boxGeometry, crateMaterial, [0.72, 0.42, 0.74], [x, y, z], index * 0.12);
   });
 
-  return placementSurfaces;
 }
 
 function addPaperSprite(
@@ -377,18 +377,16 @@ function addPaperSprite(
   scale: number,
   shadowHeight: number,
 ) {
-  const columns = 20;
-  const rows = category === 'Food' ? 11 : 6;
-  const zeroBasedIndex = spriteNumber - 1;
-  const texture = new THREE.TextureLoader().load(category === 'Food' ? foodUrl : animalsUrl);
+  const { sheet, column, row } = getSpriteCell(category, spriteNumber);
+  const texture = new THREE.TextureLoader().load(sheet.url);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestFilter;
   texture.generateMipmaps = false;
-  texture.repeat.set(1 / columns, 1 / rows);
+  texture.repeat.set(1 / sheet.columns, 1 / sheet.rows);
   texture.offset.set(
-    (zeroBasedIndex % columns) / columns,
-    1 - (Math.floor(zeroBasedIndex / columns) + 1) / rows,
+    column / sheet.columns,
+    1 - (row + 1) / sheet.rows,
   );
 
   const sprite = new THREE.Sprite(
@@ -413,25 +411,12 @@ function addPaperSprite(
   scene.add(shadow);
 }
 
-type GameEnvironmentProps = {
+type EnvironmentPreviewProps = {
   category: EnvironmentCategory;
-  placementSpriteNumber: number | null;
-  onPlacementComplete: () => void;
 };
 
-export function GameEnvironment({
-  category,
-  placementSpriteNumber,
-  onPlacementComplete,
-}: GameEnvironmentProps) {
+export function EnvironmentPreview({ category }: EnvironmentPreviewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const placementSpriteRef = useRef(placementSpriteNumber);
-  const onPlacementCompleteRef = useRef(onPlacementComplete);
-
-  useEffect(() => {
-    placementSpriteRef.current = placementSpriteNumber;
-    onPlacementCompleteRef.current = onPlacementComplete;
-  }, [onPlacementComplete, placementSpriteNumber]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -440,7 +425,7 @@ export function GameEnvironment({
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 60);
     let clouds: THREE.Group | null = null;
-    let placementSurfaces: THREE.Object3D[] = [];
+    const spriteNumbers = randomSpriteNumbers(category, 4);
 
     if (category === 'Animals') {
       scene.background = new THREE.Color(0x86a9b2);
@@ -452,26 +437,25 @@ export function GameEnvironment({
       sunlight.position.set(-6, 10, 7);
       scene.add(sunlight);
 
-      const ground = createGround();
-      placementSurfaces = [ground];
-      scene.add(ground, createPath());
+      scene.add(createGround(), createPath());
       addTrees(scene);
       addRocks(scene);
       addMountains(scene);
       clouds = createClouds();
       scene.add(clouds);
 
-      const animalX = -1.7;
-      const animalZ = -3.8;
-      const animalGround = terrainHeight(animalX, animalZ);
-      addPaperSprite(
-        scene,
-        category,
-        WORLD_SPRITE_NUMBERS.Animals,
-        new THREE.Vector3(animalX, animalGround + 0.82, animalZ),
-        1.55,
-        animalGround + 0.025,
-      );
+      [[-2.4, -3.2], [2.4, -5.8], [-1.8, -9.2], [2.7, -12.6]].forEach(([x, z], index) => {
+        const ground = terrainHeight(x, z);
+        const scale = 2.2 + index * 0.15;
+        addPaperSprite(
+          scene,
+          category,
+          spriteNumbers[index],
+          new THREE.Vector3(x, ground + scale * 0.53, z),
+          scale,
+          ground + 0.025,
+        );
+      });
     } else {
       scene.background = new THREE.Color(0x70685b);
       scene.fog = new THREE.Fog(0x70685b, 12, 25);
@@ -482,26 +466,36 @@ export function GameEnvironment({
       shopLight.position.set(-4, 9, 5);
       scene.add(shopLight);
 
-      placementSurfaces = createShop(scene);
-      addPaperSprite(
-        scene,
-        category,
-        WORLD_SPRITE_NUMBERS.Food,
-        new THREE.Vector3(-1.35, 1.72, -0.9),
-        1,
-        1.145,
-      );
+      createShop(scene);
+      [
+        [-1.35, 1.72, -0.9, 1, 1.145],
+        [2.25, 1.72, -2.5, 1, 1.145],
+        [3.4, 1.81, 4.4, 1, 1.27],
+        [0, 2.45, -7.45, 0.75, 2.13],
+      ].forEach(([x, y, z, scale, shadowHeight], index) => {
+        addPaperSprite(
+          scene,
+          category,
+          spriteNumbers[index],
+          new THREE.Vector3(x, y, z),
+          scale,
+          shadowHeight,
+        );
+      });
     }
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: false,
-      alpha: false,
-      powerPreference: 'low-power',
-    });
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25) * 0.72);
-    renderer.domElement.className = 'environment-canvas';
-    renderer.domElement.setAttribute('aria-hidden', 'true');
+    if (!sharedRenderer) {
+      sharedRenderer = new THREE.WebGLRenderer({
+        antialias: false,
+        alpha: false,
+        powerPreference: 'low-power',
+      });
+      sharedRenderer.outputColorSpace = THREE.SRGBColorSpace;
+      sharedRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25) * 0.72);
+      sharedRenderer.domElement.className = 'environment-canvas';
+      sharedRenderer.domElement.setAttribute('aria-hidden', 'true');
+    }
+    const renderer = sharedRenderer;
     host.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -522,88 +516,6 @@ export function GameEnvironment({
     controls.rotateSpeed = 0.58;
     controls.zoomSpeed = 0.7;
     controls.update();
-
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    let placementPointer: { pointerId: number; startX: number; startY: number; moved: boolean } | null =
-      null;
-    let suppressPlacementClick = false;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
-      placementPointer = {
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        moved: false,
-      };
-    };
-
-    const handlePointerMove = (event: PointerEvent) => {
-      if (!placementPointer || placementPointer.pointerId !== event.pointerId) return;
-      const distance = Math.hypot(
-        event.clientX - placementPointer.startX,
-        event.clientY - placementPointer.startY,
-      );
-      if (distance > 7) placementPointer.moved = true;
-    };
-
-    const handlePointerUp = (event: PointerEvent) => {
-      const gesture = placementPointer;
-      placementPointer = null;
-      if (!gesture || gesture.pointerId !== event.pointerId || !gesture.moved) return;
-      suppressPlacementClick = true;
-      window.setTimeout(() => {
-        suppressPlacementClick = false;
-      }, 0);
-    };
-
-    const handleCanvasClick = (event: MouseEvent) => {
-      if (suppressPlacementClick) return;
-      const spriteNumber = placementSpriteRef.current;
-      if (spriteNumber === null) return;
-
-      const bounds = renderer.domElement.getBoundingClientRect();
-      pointer.set(
-        ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
-        -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
-      );
-      raycaster.setFromCamera(pointer, camera);
-
-      const intersections = raycaster.intersectObjects(placementSurfaces, false);
-      const intersection = intersections[0];
-      if (!intersection) return;
-
-      const scale = category === 'Food' ? 0.92 : 1.35;
-      const surfaceHeight =
-        category === 'Food'
-          ? new THREE.Box3().setFromObject(intersection.object).max.y
-          : intersection.point.y;
-      addPaperSprite(
-        scene,
-        category,
-        spriteNumber,
-        new THREE.Vector3(
-          intersection.point.x,
-          surfaceHeight + scale * 0.54,
-          intersection.point.z,
-        ),
-        scale,
-        surfaceHeight + 0.018,
-      );
-      placementSpriteRef.current = null;
-      onPlacementCompleteRef.current();
-    };
-
-    const cancelPlacementPointer = () => {
-      placementPointer = null;
-    };
-
-    renderer.domElement.addEventListener('pointerdown', handlePointerDown);
-    renderer.domElement.addEventListener('pointermove', handlePointerMove);
-    renderer.domElement.addEventListener('pointerup', handlePointerUp);
-    renderer.domElement.addEventListener('pointercancel', cancelPlacementPointer);
-    renderer.domElement.addEventListener('click', handleCanvasClick);
 
     const resize = () => {
       const width = Math.max(host.clientWidth, 1);
@@ -634,11 +546,6 @@ export function GameEnvironment({
     return () => {
       cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
-      renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
-      renderer.domElement.removeEventListener('pointermove', handlePointerMove);
-      renderer.domElement.removeEventListener('pointerup', handlePointerUp);
-      renderer.domElement.removeEventListener('pointercancel', cancelPlacementPointer);
-      renderer.domElement.removeEventListener('click', handleCanvasClick);
       controls.dispose();
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Sprite)) return;
@@ -649,16 +556,9 @@ export function GameEnvironment({
           material.dispose();
         });
       });
-      renderer.dispose();
       renderer.domElement.remove();
     };
   }, [category]);
 
-  return (
-    <div
-      ref={hostRef}
-      className={`environment-stage${placementSpriteNumber === null ? '' : ' is-placing'}`}
-      aria-hidden="true"
-    />
-  );
+  return <div ref={hostRef} className="environment-stage" aria-hidden="true" />;
 }

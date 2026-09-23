@@ -34,14 +34,14 @@ export type SpriteSheet = {
 
 export const SPRITE_ATLAS: Record<SpriteCategory, SpriteSheet> = {
   Activity: { url: activityUrl, columns: 20, rows: 7, count: 123, cellSize: 16 },
-  Animals: { url: animalsUrl, columns: 20, rows: 6, count: 103, cellSize: 16 },
+  Animals: { url: animalsUrl, columns: 20, rows: 6, count: 104, cellSize: 16 },
   Characters: { url: charactersUrl, columns: 20, rows: 3, count: 49, cellSize: 16 },
-  Food: { url: foodUrl, columns: 20, rows: 11, count: 219, cellSize: 16 },
+  Food: { url: foodUrl, columns: 20, rows: 11, count: 220, cellSize: 16 },
   Nature: { url: natureUrl, columns: 20, rows: 8, count: 145, cellSize: 16 },
   Objects: { url: objectsUrl, columns: 20, rows: 27, count: 538, cellSize: 16 },
   'Smileys & People': { url: smileysPeopleUrl, columns: 20, rows: 17, count: 327, cellSize: 16 },
   Symbols: { url: symbolsUrl, columns: 20, rows: 13, count: 257, cellSize: 16 },
-  'Travel & Places': { url: travelPlacesUrl, columns: 20, rows: 9, count: 163, cellSize: 16 },
+  'Travel & Places': { url: travelPlacesUrl, columns: 20, rows: 9, count: 164, cellSize: 16 },
   Weapons: { url: weaponsUrl, columns: 20, rows: 5, count: 81, cellSize: 16 },
 };
 
